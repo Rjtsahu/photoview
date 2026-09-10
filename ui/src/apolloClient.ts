@@ -103,21 +103,31 @@ const linkError = onError(({ graphQLErrors, networkError }) => {
 
   if (networkError) {
     console.log(`[Network error]: ${JSON.stringify(networkError)}`)
-    clearTokenCookie()
+    const statusCode = (networkError as ServerError)?.statusCode
+    if (statusCode === 401) {
+      console.log('HTTP 401 Unauthorized, clearing token cookie')
+      clearTokenCookie()
+    }
 
     const errors =
-      ((networkError as ServerError)?.result.errors as Error[]) || []
+      ((networkError as ServerError)?.result?.errors as Error[]) || []
 
     if (errors.length == 1) {
       errorMessages.push({
-        header: 'Server error',
-        content: `You are being logged out in an attempt to recover.\n${errors[0].message}`,
+        header: statusCode === 401 ? 'Unauthorized' : 'Server error',
+        content: statusCode === 401
+          ? `You are being logged out because your session has expired.\n${errors[0].message}`
+          : errors[0].message,
       })
     } else if (errors.length > 1) {
       errorMessages.push({
         header: 'Multiple server errors',
-        content: `Received ${graphQLErrors?.length || 0
-          } errors from the server. You are being logged out in an attempt to recover.`,
+        content: `Received ${errors.length} errors from the server.`,
+      })
+    } else if (networkError.message) {
+      errorMessages.push({
+        header: 'Network error',
+        content: networkError.message,
       })
     }
   }

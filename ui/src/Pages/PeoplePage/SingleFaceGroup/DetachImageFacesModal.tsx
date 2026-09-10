@@ -45,7 +45,14 @@ export const useDetachImageFaces = (
       | singleFaceGroup_faceGroup_imageFaces
     )[]
   ) => {
-    const faceIDs = selectedImageFaces.map(face => face.id)
+    const faceIDs = selectedImageFaces
+      .filter(face => face != null && face.id != null)
+      .map(face => String(face.id))
+      .filter(Boolean)
+
+    if (faceIDs.length === 0) {
+      throw new Error('No valid image faces selected to detach')
+    }
 
     const result = await detachImageFacesMutation({
       variables: {
@@ -89,11 +96,16 @@ const DetachImageFacesModal = ({
   })
 
   const detachImageFaces = () => {
-    detachImageFacesMutation(selectedImageFaces).then(({ data }) => {
-      if (isNil(data)) throw new Error('Expected data not to be null')
-      setOpen(false)
-      navigate(`/people/${data.detachImageFaces.id}`)
-    })
+    if (selectedImageFaces.length === 0) return
+    detachImageFacesMutation(selectedImageFaces)
+      .then(res => {
+        if (isNil(res?.data)) throw new Error('Expected data not to be null')
+        setOpen(false)
+        navigate(`/people/${res.data.detachImageFaces.id}`)
+      })
+      .catch(err => {
+        console.error('Failed to detach image faces:', err)
+      })
   }
 
   useEffect(() => {
