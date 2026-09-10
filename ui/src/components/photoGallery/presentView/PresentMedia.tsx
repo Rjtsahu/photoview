@@ -24,6 +24,7 @@ import RotateIcon from "./icons/Rotate"
 import InfoIcon from "./icons/InfoIcon"
 import FilmstripIcon from "./icons/Filmstrip"
 import EditIcon from "./icons/EditIcon"
+import FavoriteIcon from "./icons/FavoriteIcon"
 import PresentExifBadge from "./PresentExifBadge"
 import PresentFilmstrip from "./PresentFilmstrip"
 
@@ -177,6 +178,8 @@ type PresentMediaProps = {
   showFilmstrip?: boolean
   onToggleFilmstrip?: () => void
   onToggleEdit?: () => void
+  isFavorite?: boolean
+  onToggleFavorite?: () => void
   mediaList?: MediaGalleryFields[]
   onSelectMedia?: (media: MediaGalleryFields, index: number) => void
 }
@@ -192,6 +195,8 @@ const PresentMedia = ({
   showFilmstrip = false,
   onToggleFilmstrip,
   onToggleEdit,
+  isFavorite,
+  onToggleFavorite,
   mediaList,
   onSelectMedia,
   ...otherProps
@@ -427,6 +432,19 @@ const PresentMedia = ({
                   </HdButton>
 
                   <ToolbarDivider />
+
+                  {/* Favorite Toggle Button */}
+                  {onToggleFavorite && (
+                    <ZoomToolbarButton
+                      active={isFavorite}
+                      aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                      title={isFavorite ? "Remove from favorites (s)" : "Add to favorites (s)"}
+                      onClick={onToggleFavorite}
+                      style={isFavorite ? { color: "#f43f5e" } : undefined}
+                    >
+                      <FavoriteIcon filled={isFavorite} />
+                    </ZoomToolbarButton>
+                  )}
 
                   {/* EXIF Info HUD Toggle */}
                   {onToggleExif && (
