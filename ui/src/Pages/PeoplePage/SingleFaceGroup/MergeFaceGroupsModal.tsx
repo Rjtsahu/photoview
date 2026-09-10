@@ -18,10 +18,10 @@ import {
 import { singleFaceGroup_faceGroup } from './__generated__/singleFaceGroup'
 
 export const COMBINE_FACES_MUTATION = gql`
-  mutation combineFaces($destID: ID!, $srcIDs: [ID!]!) {
+  mutation combineFaces($destID: ID!, $srcID: ID!) {
     combineFaceGroups(
       destinationFaceGroupID: $destID
-      sourceFaceGroupIDs: $srcIDs
+      sourceFaceGroupID: $srcID
     ) {
       id
     }
@@ -112,13 +112,13 @@ const MergeFaceGroupsModal = ({
     if (isNil(preselectedDestinationFaceGroup)) return
     if (state != MergeFaceGroupsModalState.SelectDestination) return
 
-    const destinationFaceGroup = data?.myFaceGroups.find(
+    const destinationFaceGroup = data?.myFaceGroups?.find(
       x => x.id == preselectedDestinationFaceGroup?.id
-    )
+    ) ?? (preselectedDestinationFaceGroup as any)
     if (isNil(destinationFaceGroup)) return
 
     setDestinationFaceGroup(destinationFaceGroup)
-  }, [state, preselectedDestinationFaceGroup])
+  }, [state, preselectedDestinationFaceGroup, data])
 
   function handleFaceGroupToggled(newValue: myFaces_myFaceGroups | singleFaceGroup_faceGroup) {
     switch (state) {
@@ -150,24 +150,36 @@ const MergeFaceGroupsModal = ({
     setSelectedFaceGroups(new Set())
   }
 
-  const mergeFaceGroups = () => {
-    if (isNil(selectedDestinationFaceGroup))
-      throw new Error('No selected destination face group')
+  const mergeFaceGroups = async () => {
+    if (isNil(selectedDestinationFaceGroup) || !selectedDestinationFaceGroup.id) {
+      console.error('No selected destination face group')
+      return
+    }
 
-    const sourceGroupIDs: string[] = [...selectedFaceGroups].filter(fc => fc !== null).map(fc => fc.id)
+    const sourceGroupIDs: string[] = [...selectedFaceGroups]
+      .filter((fc): fc is (myFaces_myFaceGroups | singleFaceGroup_faceGroup) => fc != null && fc.id != null)
+      .map(fc => String(fc.id))
+      .filter(Boolean)
 
-    if(sourceGroupIDs.length < 1)
-      throw new Error('No selected source face groups')
+    if (sourceGroupIDs.length < 1) {
+      console.error('No selected source face groups')
+      return
+    }
 
-    combineFacesMutation({
-      variables: {
-        srcIDs: sourceGroupIDs,
-        destID: selectedDestinationFaceGroup.id,
-      },
-    }).then(() => {
+    try {
+      for (const srcID of sourceGroupIDs) {
+        await combineFacesMutation({
+          variables: {
+            srcID,
+            destID: String(selectedDestinationFaceGroup.id),
+          },
+        })
+      }
       setState(MergeFaceGroupsModalState.Closed)
       navigate(`/people/${selectedDestinationFaceGroup.id}`)
-    })
+    } catch (err) {
+      console.error('Failed to merge face groups:', err)
+    }
   }
 
   const closeModal = () => {

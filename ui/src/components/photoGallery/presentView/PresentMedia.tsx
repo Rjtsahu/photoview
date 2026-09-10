@@ -23,6 +23,7 @@ import ZoomResetIcon from "./icons/ZoomReset"
 import RotateIcon from "./icons/Rotate"
 import InfoIcon from "./icons/InfoIcon"
 import FilmstripIcon from "./icons/Filmstrip"
+import EditIcon from "./icons/EditIcon"
 import PresentExifBadge from "./PresentExifBadge"
 import PresentFilmstrip from "./PresentFilmstrip"
 
@@ -175,6 +176,7 @@ type PresentMediaProps = {
   onToggleExif?: () => void
   showFilmstrip?: boolean
   onToggleFilmstrip?: () => void
+  onToggleEdit?: () => void
   mediaList?: MediaGalleryFields[]
   onSelectMedia?: (media: MediaGalleryFields, index: number) => void
 }
@@ -189,6 +191,7 @@ const PresentMedia = ({
   onToggleExif,
   showFilmstrip = false,
   onToggleFilmstrip,
+  onToggleEdit,
   mediaList,
   onSelectMedia,
   ...otherProps
@@ -344,6 +347,16 @@ const PresentMedia = ({
 
                 {/* Floating Bottom Toolbar */}
                 <ZoomToolbar className={hideControls ? "hide" : undefined}>
+                  {onToggleEdit && (
+                    <ZoomToolbarButton
+                      aria-label="Edit photo"
+                      title="Open photo editor (e)"
+                      onClick={onToggleEdit}
+                    >
+                      <EditIcon />
+                    </ZoomToolbarButton>
+                  )}
+
                   {onRotate && (
                     <ZoomToolbarButton
                       aria-label="Rotate image"

@@ -100,6 +100,7 @@ const PersonMoreMenu = ({
   )
 
   const detachImageFace = () => {
+    if (!face || !face.id) return
     if (
       !confirm(
         t(
@@ -109,10 +110,14 @@ const PersonMoreMenu = ({
       )
     )
       return
-    detachImageFaceMutation([face]).then(({ data }) => {
-      if (isNil(data)) throw new Error('Expected data not to be null')
-      navigate(`/people/${data.detachImageFaces.id}`)
-    })
+    detachImageFaceMutation([face])
+      .then(res => {
+        if (isNil(res?.data)) throw new Error('Expected data not to be null')
+        navigate(`/people/${res.data.detachImageFaces.id}`)
+      })
+      .catch(err => {
+        console.error('Failed to detach image face:', err)
+      })
   }
 
   return (

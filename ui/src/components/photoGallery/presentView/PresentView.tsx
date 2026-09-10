@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react"
 import styled, { createGlobalStyle } from "styled-components"
 import PresentNavigationOverlay from "./PresentNavigationOverlay"
 import PresentMedia from "./PresentMedia"
+import PresentPhotoEditor from "./PresentPhotoEditor"
 import { closePresentModeAction, GalleryAction } from "../mediaGalleryReducer"
 import { MediaGalleryFields } from "../__generated__/MediaGalleryFields"
 
@@ -44,14 +45,24 @@ const PresentView = ({
   const [rotation, setRotation] = useState(0)
   const [showExif, setShowExif] = useState(false)
   const [showFilmstrip, setShowFilmstrip] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
 
-  // Reset rotation when media changes
+  // Reset rotation and editing when media changes
   useEffect(() => {
     setRotation(0)
+    setIsEditing(false)
   }, [activeMedia.id])
 
   useEffect(() => {
     const keyDownEvent = (e: KeyboardEvent) => {
+      if (isEditing) {
+        if (e.key === "Escape") {
+          e.stopPropagation()
+          setIsEditing(false)
+        }
+        return
+      }
+
       if (e.key === "ArrowRight") {
         e.stopPropagation()
         dispatchMedia({ type: "nextImage" })
@@ -70,6 +81,11 @@ const PresentView = ({
         } else {
           closePresentModeAction({ dispatchMedia })
         }
+      }
+
+      if (e.key === "e" || e.key === "E") {
+        e.stopPropagation()
+        setIsEditing(true)
       }
 
       if (e.key === "r" || e.key === "R") {
@@ -93,28 +109,36 @@ const PresentView = ({
     return function cleanup() {
       document.removeEventListener("keydown", keyDownEvent)
     }
-  }, [dispatchMedia, disableSaveCloseInHistory])
+  }, [dispatchMedia, disableSaveCloseInHistory, isEditing])
 
   return (
     <StyledContainer className={className}>
       <PreventScroll />
-      <PresentNavigationOverlay
-        dispatchMedia={dispatchMedia}
-        disableSaveCloseInHistory
-      >
-        <PresentMedia
+      {isEditing ? (
+        <PresentPhotoEditor
           media={activeMedia}
-          imageLoaded={imageLoaded}
-          rotation={rotation}
-          onRotate={() => setRotation(r => (r + 90) % 360)}
-          showExif={showExif}
-          onToggleExif={() => setShowExif(s => !s)}
-          showFilmstrip={showFilmstrip}
-          onToggleFilmstrip={() => setShowFilmstrip(s => !s)}
-          mediaList={mediaList}
-          onSelectMedia={onSelectMedia}
+          onClose={() => setIsEditing(false)}
         />
-      </PresentNavigationOverlay>
+      ) : (
+        <PresentNavigationOverlay
+          dispatchMedia={dispatchMedia}
+          disableSaveCloseInHistory
+        >
+          <PresentMedia
+            media={activeMedia}
+            imageLoaded={imageLoaded}
+            rotation={rotation}
+            onRotate={() => setRotation(r => (r + 90) % 360)}
+            showExif={showExif}
+            onToggleExif={() => setShowExif(s => !s)}
+            showFilmstrip={showFilmstrip}
+            onToggleFilmstrip={() => setShowFilmstrip(s => !s)}
+            onToggleEdit={() => setIsEditing(true)}
+            mediaList={mediaList}
+            onSelectMedia={onSelectMedia}
+          />
+        </PresentNavigationOverlay>
+      )}
     </StyledContainer>
   )
 }
