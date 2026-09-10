@@ -112,6 +112,10 @@ const MediaGallery = ({ mediaState, dispatchMedia }: MediaGalleryProps) => {
         <PresentView
           activeMedia={mediaState.media[mediaState.activeIndex]}
           dispatchMedia={dispatchMedia}
+          mediaList={mediaState.media}
+          onSelectMedia={(_media, index) =>
+            dispatchMedia({ type: "selectImage", index })
+          }
         />
       )}
     </>

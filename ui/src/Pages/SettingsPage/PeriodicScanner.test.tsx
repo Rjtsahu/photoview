@@ -14,16 +14,23 @@ test('Enable periodic scanner', async () => {
       },
       result: {
         data: {
-          siteInfo: { periodicScanInterval: 7380, __typename: 'SiteInfo' },
+          siteInfo: { periodicScanInterval: 0, __typename: 'SiteInfo' },
         },
       },
     },
     {
       request: {
         query: SCAN_INTERVAL_MUTATION,
-        variables: { interval: 0 },
+        variables: { interval: 7200 },
       },
-      result: { data: { setPeriodicScanInterval: 0 } },
+      result: { data: { setPeriodicScanInterval: 7200 } },
+    },
+    {
+      request: {
+        query: SCAN_INTERVAL_MUTATION,
+        variables: { interval: 120 },
+      },
+      result: { data: { setPeriodicScanInterval: 120 } },
     },
     {
       request: {

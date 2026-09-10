@@ -100,21 +100,23 @@ const PeriodicScanner = () => {
 
   const [enablePeriodicScanner, setEnablePeriodicScanner] = useState(false)
   const [scanInterval, setScanInterval] = useState<TimeValue>({
-    value: 0,
-    unit: TimeUnit.Second,
+    value: 2,
+    unit: TimeUnit.Hour,
   })
 
   const scanIntervalServerValue = useRef<number | null>(null)
 
   const scanIntervalQuery = useQuery<scanIntervalQuery>(SCAN_INTERVAL_QUERY, {
+    fetchPolicy: 'network-only',
     onCompleted(data) {
       const queryScanInterval = data.siteInfo.periodicScanInterval
+      scanIntervalServerValue.current = queryScanInterval
 
       if (queryScanInterval == 0) {
-        setScanInterval({
-          unit: TimeUnit.Second,
-          value: 0,
-        })
+        setScanInterval(prev => ({
+          unit: prev.value > 0 ? prev.unit : TimeUnit.Hour,
+          value: prev.value > 0 ? prev.value : 2,
+        }))
       } else {
         setScanInterval(
           convertToAppropriateUnit({
@@ -132,26 +134,35 @@ const PeriodicScanner = () => {
     useMutation<
       changeScanIntervalMutation,
       changeScanIntervalMutationVariables
-    >(SCAN_INTERVAL_MUTATION)
+    >(SCAN_INTERVAL_MUTATION, {
+      refetchQueries: [{ query: SCAN_INTERVAL_QUERY }],
+    })
 
   const onScanIntervalCheckboxChange = (checked: boolean) => {
     setEnablePeriodicScanner(checked)
 
-    onScanIntervalUpdate(
-      checked ? scanInterval : { value: 0, unit: TimeUnit.Second }
-    )
+    if (checked) {
+      const intervalToSave =
+        scanInterval.value > 0
+          ? scanInterval
+          : { value: 2, unit: TimeUnit.Hour }
+      setScanInterval(intervalToSave)
+      onScanIntervalUpdate(intervalToSave)
+    } else {
+      onScanIntervalUpdate({ value: 0, unit: TimeUnit.Second })
+    }
   }
 
-  const onScanIntervalUpdate = (scanInterval: TimeValue) => {
-    const seconds = convertToSeconds(scanInterval)
+  const onScanIntervalUpdate = (targetInterval: TimeValue) => {
+    const seconds = convertToSeconds(targetInterval)
 
-    if (scanIntervalServerValue.current != seconds) {
+    if (scanIntervalServerValue.current !== seconds) {
+      scanIntervalServerValue.current = seconds
       setScanIntervalMutation({
         variables: {
           interval: seconds,
         },
       })
-      scanIntervalServerValue.current = seconds
     }
   }
 
@@ -218,13 +229,21 @@ const PeriodicScanner = () => {
             disabled={!enablePeriodicScanner}
             value={scanInterval.value}
             onChange={e => {
+              const val = Number(e.target.value)
               setScanInterval(x => ({
-                value: Number(e.target.value),
+                value: isNaN(val) ? 0 : val,
                 unit: x.unit,
               }))
             }}
+            onBlur={() => {
+              if (enablePeriodicScanner && scanInterval.value > 0) {
+                onScanIntervalUpdate(scanInterval)
+              }
+            }}
             action={() => {
-              onScanIntervalUpdate(scanInterval)
+              if (enablePeriodicScanner && scanInterval.value > 0) {
+                onScanIntervalUpdate(scanInterval)
+              }
             }}
           />
           <Dropdown
@@ -239,7 +258,9 @@ const PeriodicScanner = () => {
               }
 
               setScanInterval(newScanInterval)
-              onScanIntervalUpdate(newScanInterval)
+              if (enablePeriodicScanner && newScanInterval.value > 0) {
+                onScanIntervalUpdate(newScanInterval)
+              }
             }}
           />
         </div>
