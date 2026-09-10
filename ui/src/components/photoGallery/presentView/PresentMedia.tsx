@@ -197,6 +197,18 @@ const PresentMedia = ({
   const [scale, setScale] = useState(1)
   const [loadHd, setLoadHd] = useState(false)
   const [hdLoaded, setHdLoaded] = useState(false)
+  const [windowSize, setWindowSize] = useState({
+    w: typeof window !== "undefined" ? window.innerWidth : 1920,
+    h: typeof window !== "undefined" ? window.innerHeight : 1080,
+  })
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ w: window.innerWidth, h: window.innerHeight })
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   // Reset zoom & HD state whenever media changes
   useEffect(() => {
@@ -228,6 +240,15 @@ const PresentMedia = ({
   const masterUrl = masterDownload?.mediaUrl?.url
 
   const isRotatedSideways = rotation % 180 !== 0
+  const sidewaysScale = isRotatedSideways
+    ? Math.min(windowSize.w / windowSize.h, windowSize.h / windowSize.w)
+    : 1
+
+  const handleRotateClick = () => {
+    transformComponentRef.current?.resetTransform()
+    setScale(1)
+    onRotate && onRotate()
+  }
 
   switch (media.type) {
     case MediaType.Photo:
@@ -263,20 +284,21 @@ const PresentMedia = ({
                   contentStyle={{
                     width: "100vw",
                     height: "100vh",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
                   <div
                     style={{
-                      width: isRotatedSideways ? "100vh" : "100vw",
-                      height: isRotatedSideways ? "100vw" : "100vh",
-                      position: "relative",
+                      width: "100vw",
+                      height: "100vh",
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      transform: `rotate(${rotation}deg)`,
+                      transform: `rotate(${rotation}deg) scale(${sidewaysScale})`,
                       transformOrigin: "center center",
                       transition: "transform 200ms cubic-bezier(0.2, 0, 0, 1)",
                     }}
@@ -326,7 +348,7 @@ const PresentMedia = ({
                     <ZoomToolbarButton
                       aria-label="Rotate image"
                       title="Rotate 90° clockwise (r)"
-                      onClick={onRotate}
+                      onClick={handleRotateClick}
                     >
                       <RotateIcon />
                     </ZoomToolbarButton>

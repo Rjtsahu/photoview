@@ -10,8 +10,8 @@ import { SIDEBAR_MEDIA_QUERY } from "../../sidebar/MediaSidebar/MediaSidebar"
 
 const BadgeContainer = styled.div`
   position: absolute;
-  bottom: 24px;
-  left: 24px;
+  top: 24px;
+  right: 24px;
   max-width: 420px;
   background: rgba(18, 18, 20, 0.78);
   backdrop-filter: blur(12px);
@@ -28,7 +28,7 @@ const BadgeContainer = styled.div`
   &.hide {
     opacity: 0;
     pointer-events: none;
-    transform: translateY(12px);
+    transform: translateY(-12px);
   }
 `
 
