@@ -145,7 +145,8 @@ const PresentMedia = ({
             minScale={1}
             maxScale={8}
             centerOnInit
-            wheel={{ step: 0.15 }}
+            wheel={{ step: 0.08 }}
+            pinch={{ step: 1 }}
             doubleClick={{ mode: 'toggle', step: 2 }}
             panning={{ disabled: scale <= 1 }}
             onTransform={(_ref: ReactZoomPanPinchRef, state: { scale: number }) => {
