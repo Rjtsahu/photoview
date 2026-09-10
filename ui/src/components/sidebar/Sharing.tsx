@@ -61,7 +61,6 @@ const SHARE_PHOTO_QUERY = gql`
       shares {
         id
         token
-        label
         hasPassword
         expire
       }
@@ -76,7 +75,6 @@ export const SHARE_ALBUM_QUERY = gql`
       shares {
         id
         token
-        label
         hasPassword
         expire
       }
@@ -455,7 +453,6 @@ const MorePopover = ({ id, share, query }: MorePopoverProps) => {
 
       <Popover.Panel>
         <ArrowPopoverPanel width={260}>
-          <MorePopoverSectionLabel id={id} share={share} query={query} />
           <MorePopoverSectionPassword id={id} share={share} query={query} />
           <MorePopoverSectionExpiration id={id} share={share} query={query} />
         </ArrowPopoverPanel>
@@ -598,11 +595,9 @@ const SidebarShare = ({
         <span className="text-[#585858] dark:text-[#C0C3C4] mr-2 flex items-center">
           <LinkIcon className="mr-2 shrink-0" />
           <span className="text-xs font-bold">
-            {share.label || (
-              <span className="uppercase">
-                {t('sidebar.sharing.public_link', 'Public Link') + ' '}
-              </span>
-            )}
+            <span className="uppercase">
+              {t('sidebar.sharing.public_link', 'Public Link') + ' '}
+            </span>
           </span>
         </span>
         <span className="text-sm break-all block ml-6">{share.token}</span>
