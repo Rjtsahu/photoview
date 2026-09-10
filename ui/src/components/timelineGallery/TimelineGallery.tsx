@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useReducer } from 'react'
+import React, { useRef, useEffect, useReducer, useMemo } from 'react'
 import { useQuery, gql } from '@apollo/client'
 import TimelineGroupDate from './TimelineGroupDate'
 import PresentView from '../photoGallery/presentView/PresentView'
@@ -14,6 +14,7 @@ import {
 import {
   getActiveTimelineImage as getActiveTimelineMedia,
   timelineGalleryReducer,
+  TimelineMediaIndex,
 } from './timelineGalleryReducer'
 import { urlPresentModeSetupHook } from '../photoGallery/mediaGalleryReducer'
 import TimelineFilters from './TimelineFilters'
@@ -166,6 +167,24 @@ const TimelineGallery = () => {
     />
   ))
 
+  const flatTimelineMedia = useMemo(() => {
+    const list: {
+      media: myTimeline_myTimeline
+      index: TimelineMediaIndex
+    }[] = []
+    mediaState.timelineGroups.forEach((group, dateIndex) => {
+      group.albums.forEach((album, albumIndex) => {
+        album.media.forEach((m, mediaIndex) => {
+          list.push({
+            media: m,
+            index: { date: dateIndex, album: albumIndex, media: mediaIndex },
+          })
+        })
+      })
+    })
+    return list
+  }, [mediaState.timelineGroups])
+
   return (
     <div className="overflow-x-hidden">
       <TimelineFilters
@@ -185,6 +204,13 @@ const TimelineGallery = () => {
         <PresentView
           activeMedia={getActiveTimelineMedia({ mediaState })!}
           dispatchMedia={dispatchMedia}
+          mediaList={flatTimelineMedia.map(x => x.media)}
+          onSelectMedia={(_media, index) =>
+            dispatchMedia({
+              type: 'selectImage',
+              index: flatTimelineMedia[index].index,
+            })
+          }
         />
       )}
     </div>

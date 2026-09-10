@@ -11,6 +11,7 @@ export type GalleryAction =
   | { type: 'nextImage' }
   | { type: 'previousImage' }
   | { type: 'closePresentMode' }
+  | { type: 'selectImage'; index: number }
 
 export type PhotoGalleryAction =
   | GalleryAction
