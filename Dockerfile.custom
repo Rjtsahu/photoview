@@ -1,0 +1,2 @@
+FROM photoview/photoview:2
+COPY ui/dist /app/ui
