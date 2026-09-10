@@ -22,6 +22,33 @@ export type TimelineGalleryAction =
   | { type: 'selectImage'; index: TimelineMediaIndex }
   | { type: 'openPresentMode'; activeIndex: TimelineMediaIndex }
 
+export const getTimelineImage = ({
+  mediaState,
+  index,
+}: {
+  mediaState: TimelineGalleryState
+  index: TimelineMediaIndex
+}): myTimeline_myTimeline | undefined => {
+  const { date, album, media } = index
+  return mediaState.timelineGroups[date]?.albums[album]?.media[media]
+}
+
+export const getActiveTimelineImage = ({
+  mediaState,
+}: {
+  mediaState: TimelineGalleryState
+}): myTimeline_myTimeline | undefined => {
+  if (
+    mediaState.activeIndex.date === -1 ||
+    mediaState.activeIndex.album === -1 ||
+    mediaState.activeIndex.media === -1
+  ) {
+    return undefined
+  }
+
+  return getTimelineImage({ mediaState, index: mediaState.activeIndex })
+}
+
 export function timelineGalleryReducer(
   state: TimelineGalleryState,
   action: TimelineGalleryAction
@@ -30,13 +57,60 @@ export function timelineGalleryReducer(
     case 'replaceTimelineGroups': {
       const timelineGroups = convertMediaToTimelineGroups(action.timeline)
 
+      let activeIndex: TimelineMediaIndex = {
+        album: -1,
+        date: -1,
+        media: -1,
+      }
+      let presenting = state.presenting
+
+      const currentActiveMedia = getActiveTimelineImage({ mediaState: state })
+
+      if (currentActiveMedia) {
+        let found = false
+        for (let d = 0; d < timelineGroups.length; d++) {
+          for (let a = 0; a < timelineGroups[d].albums.length; a++) {
+            const mIdx = timelineGroups[d].albums[a].media.findIndex(
+              m => m.id === currentActiveMedia.id
+            )
+            if (mIdx !== -1) {
+              activeIndex = { date: d, album: a, media: mIdx }
+              found = true
+              break
+            }
+          }
+          if (found) break
+        }
+
+        if (!found && state.presenting) {
+          if (
+            timelineGroups.length > 0 &&
+            timelineGroups[0].albums.length > 0 &&
+            timelineGroups[0].albums[0].media.length > 0
+          ) {
+            const d = Math.min(
+              Math.max(0, state.activeIndex.date),
+              timelineGroups.length - 1
+            )
+            const a = Math.min(
+              Math.max(0, state.activeIndex.album),
+              timelineGroups[d].albums.length - 1
+            )
+            const m = Math.min(
+              Math.max(0, state.activeIndex.media),
+              timelineGroups[d].albums[a].media.length - 1
+            )
+            activeIndex = { date: d, album: a, media: m }
+          } else {
+            presenting = false
+          }
+        }
+      }
+
       return {
         ...state,
-        activeIndex: {
-          album: -1,
-          date: -1,
-          media: -1,
-        },
+        presenting,
+        activeIndex,
         timelineGroups,
       }
     }
@@ -144,7 +218,7 @@ export function timelineGalleryReducer(
     case 'selectImage': {
       return {
         ...state,
-        activeIndex: action.index,
+        activeIndex: typeof action.index === "number" ? state.activeIndex : action.index,
       }
     }
     case 'openPresentMode':
@@ -162,33 +236,7 @@ export function timelineGalleryReducer(
   }
 }
 
-export const getTimelineImage = ({
-  mediaState,
-  index,
-}: {
-  mediaState: TimelineGalleryState
-  index: TimelineMediaIndex
-}): myTimeline_myTimeline => {
-  const { date, album, media } = index
-  return mediaState.timelineGroups[date].albums[album].media[media]
-}
 
-export const getActiveTimelineImage = ({
-  mediaState,
-}: {
-  mediaState: TimelineGalleryState
-}) => {
-  if (
-    Object.values(mediaState.activeIndex).reduce<boolean>(
-      (acc, next) => next === -1 || acc,
-      false
-    )
-  ) {
-    return undefined
-  }
-
-  return getTimelineImage({ mediaState, index: mediaState.activeIndex })
-}
 
 function convertMediaToTimelineGroups(
   timelineMedia: myTimeline_myTimeline[]

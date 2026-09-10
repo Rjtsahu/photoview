@@ -108,7 +108,7 @@ const MediaGallery = ({ mediaState, dispatchMedia }: MediaGalleryProps) => {
         {mediaElements}
         <PhotoFiller />
       </Gallery>
-      {presenting && (
+      {presenting && mediaState.media[mediaState.activeIndex] && (
         <PresentView
           activeMedia={mediaState.media[mediaState.activeIndex]}
           dispatchMedia={dispatchMedia}

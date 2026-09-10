@@ -200,7 +200,7 @@ const TimelineGallery = () => {
         active={!finishedLoadingMore && !loading}
         text={t('general.loading.paginate.media', 'Loading more media')}
       />
-      {mediaState.presenting && (
+      {mediaState.presenting && getActiveTimelineMedia({ mediaState }) && (
         <PresentView
           activeMedia={getActiveTimelineMedia({ mediaState })!}
           dispatchMedia={dispatchMedia}

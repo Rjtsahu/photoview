@@ -56,7 +56,7 @@ const PresentView = ({
   useEffect(() => {
     setRotation(0)
     setIsEditing(false)
-  }, [activeMedia.id])
+  }, [activeMedia?.id])
 
   useEffect(() => {
     const keyDownEvent = (e: KeyboardEvent) => {
@@ -95,7 +95,9 @@ const PresentView = ({
 
       if (e.key === "s" || e.key === "S") {
         e.stopPropagation()
-        toggleFavoriteAction({ media: activeMedia, markFavorite })
+        if (activeMedia) {
+          toggleFavoriteAction({ media: activeMedia, markFavorite })
+        }
       }
 
       if (e.key === "r" || e.key === "R") {
@@ -120,6 +122,10 @@ const PresentView = ({
       document.removeEventListener("keydown", keyDownEvent)
     }
   }, [dispatchMedia, disableSaveCloseInHistory, isEditing, activeMedia, markFavorite])
+
+  if (!activeMedia) {
+    return null
+  }
 
   return (
     <StyledContainer className={className}>

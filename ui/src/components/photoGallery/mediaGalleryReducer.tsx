@@ -60,13 +60,32 @@ export function mediaGalleryReducer(
           Math.min(state.media.length - 1, action.index)
         ),
       }
-    case 'replaceMedia':
+    case 'replaceMedia': {
+      let activeIndex = -1
+      let presenting = state.presenting
+
+      if (state.presenting && state.activeIndex >= 0 && state.media[state.activeIndex]) {
+        const currentId = state.media[state.activeIndex].id
+        const newIdx = action.media.findIndex(m => m.id === currentId)
+        if (newIdx !== -1) {
+          activeIndex = newIdx
+        } else {
+          // If media was removed (e.g. unfavorited from favorites view)
+          if (action.media.length > 0) {
+            activeIndex = Math.min(state.activeIndex, action.media.length - 1)
+          } else {
+            presenting = false
+          }
+        }
+      }
+
       return {
         ...state,
         media: action.media,
-        activeIndex: -1,
-        presenting: false,
+        activeIndex,
+        presenting,
       }
+    }
   }
 }
 
