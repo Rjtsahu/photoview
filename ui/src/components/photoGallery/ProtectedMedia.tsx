@@ -41,47 +41,53 @@ export interface ProtectedImageProps
  * Native lazy load via HTMLImageElement.loading attribute will be preferred if it is supported by the browser,
  * otherwise IntersectionObserver will be used.
  */
-export const ProtectedImage = ({
-  src,
-  lazyLoading,
-  blurhash,
-  ...props
-}: ProtectedImageProps) => {
-  const [loaded, setLoaded] = useState(false)
+export const ProtectedImage = React.forwardRef<HTMLImageElement, ProtectedImageProps>(
+  ({ src, lazyLoading, blurhash, ...props }, ref) => {
+    const [loaded, setLoaded] = useState(false)
 
-  const url = getProtectedUrl(src) || placeholder
+    const url = getProtectedUrl(src) || placeholder
 
-  const didLoad = () => setLoaded(true)
+    const didLoad = () => setLoaded(true)
 
-  if (!lazyLoading) {
+    if (!lazyLoading) {
+      return (
+        <img
+          ref={ref}
+          {...props}
+          src={url}
+          loading="eager"
+          crossOrigin="use-credentials"
+        />
+      )
+    }
+
+    if (!isNativeLazyLoadSupported) {
+      return <FallbackLazyloadedImage src={url} blurhash={blurhash} {...props} />
+    }
+
+    // load with native lazy loading
     return (
-      <img {...props} src={url} loading="eager" crossOrigin="use-credentials" />
+      <div className="w-full h-full">
+        <img
+          ref={ref}
+          {...props}
+          src={url}
+          loading="lazy"
+          crossOrigin="use-credentials"
+          onLoad={didLoad}
+        />
+        {blurhash && !loaded && (
+          <BlurhashCanvas
+            className="absolute w-full h-full top-0"
+            hash={blurhash}
+          />
+        )}
+      </div>
     )
   }
+)
 
-  if (!isNativeLazyLoadSupported) {
-    return <FallbackLazyloadedImage src={url} blurhash={blurhash} {...props} />
-  }
-
-  // load with native lazy loading
-  return (
-    <div className="w-full h-full">
-      <img
-        {...props}
-        src={url}
-        loading="lazy"
-        crossOrigin="use-credentials"
-        onLoad={didLoad}
-      />
-      {blurhash && !loaded && (
-        <BlurhashCanvas
-          className="absolute w-full h-full top-0"
-          hash={blurhash}
-        />
-      )}
-    </div>
-  )
-}
+ProtectedImage.displayName = "ProtectedImage" 
 
 interface FallbackLazyloadedImageProps
   extends Omit<
