@@ -18,10 +18,10 @@ import {
 import { singleFaceGroup_faceGroup } from './__generated__/singleFaceGroup'
 
 export const COMBINE_FACES_MUTATION = gql`
-  mutation combineFaces($destID: ID!, $srcID: ID!) {
+  mutation combineFaces($destID: ID!, $srcIDs: [ID!]!) {
     combineFaceGroups(
       destinationFaceGroupID: $destID
-      sourceFaceGroupID: $srcID
+      sourceFaceGroupIDs: $srcIDs
     ) {
       id
     }
@@ -150,7 +150,7 @@ const MergeFaceGroupsModal = ({
     setSelectedFaceGroups(new Set())
   }
 
-  const mergeFaceGroups = async () => {
+  const mergeFaceGroups = () => {
     if (isNil(selectedDestinationFaceGroup) || !selectedDestinationFaceGroup.id) {
       console.error('No selected destination face group')
       return
@@ -166,20 +166,19 @@ const MergeFaceGroupsModal = ({
       return
     }
 
-    try {
-      for (const srcID of sourceGroupIDs) {
-        await combineFacesMutation({
-          variables: {
-            srcID,
-            destID: String(selectedDestinationFaceGroup.id),
-          },
-        })
-      }
-      setState(MergeFaceGroupsModalState.Closed)
-      navigate(`/people/${selectedDestinationFaceGroup.id}`)
-    } catch (err) {
-      console.error('Failed to merge face groups:', err)
-    }
+    combineFacesMutation({
+      variables: {
+        srcIDs: sourceGroupIDs,
+        destID: String(selectedDestinationFaceGroup.id),
+      },
+    })
+      .then(() => {
+        setState(MergeFaceGroupsModalState.Closed)
+        navigate(`/people/${selectedDestinationFaceGroup.id}`)
+      })
+      .catch(err => {
+        console.error('Failed to merge face groups:', err)
+      })
   }
 
   const closeModal = () => {
