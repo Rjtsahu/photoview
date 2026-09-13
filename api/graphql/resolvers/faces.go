@@ -180,15 +180,6 @@ func (r *mutationResolver) CombineFaceGroups(ctx context.Context, destinationFac
 
 	// Perform the merge
 	updateError := db.Transaction(func(tx *gorm.DB) error {
-		faceGroupIDs := append([]int{destinationFaceGroup.ID}, sourceFaceGroupIDs...)
-		hasDuplicateMedia, err := hasDuplicateMediaInFaceGroupsUnion(tx, faceGroupIDs...)
-		if err != nil {
-			return err
-		}
-		if hasDuplicateMedia {
-			return errors.New("cannot merge face groups because the destination would contain duplicate images")
-		}
-
 		if err := tx.
 			Model(&models.ImageFace{}).
 			Where(faceGroupIDsInQuestion, sourceFaceGroupIDs).
@@ -200,12 +191,14 @@ func (r *mutationResolver) CombineFaceGroups(ctx context.Context, destinationFac
 		if err := deleteFaceGroups(sourceFaceGroups, tx); err != nil {
 			return err
 		}
+
+		// Deduplicate: if destination group now has multiple faces for the same media, keep only one
 		subQuery := tx.Model(&models.ImageFace{}).
 			Select("MIN(id)").
 			Where("face_group_id = ?", destinationFaceGroup.ID).
 			Group("media_id")
 
-		err = tx.Where("face_group_id = ?", destinationFaceGroup.ID).
+		err := tx.Where("face_group_id = ?", destinationFaceGroup.ID).
 			Where("id NOT IN (?)", subQuery).
 			Delete(&models.ImageFace{}).
 			Error
@@ -219,7 +212,9 @@ func (r *mutationResolver) CombineFaceGroups(ctx context.Context, destinationFac
 		return nil, updateError
 	}
 
-	face_detection.GlobalFaceDetector.MergeImageFaces(sourceFaceGroupIDs, int32(destinationFaceGroupID))
+	for _, sourceID := range sourceFaceGroupIDs {
+		face_detection.GlobalFaceDetector.MergeCategories(int32(sourceID), int32(destinationFaceGroupID))
+	}
 
 	return destinationFaceGroup, nil
 }
