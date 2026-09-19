@@ -21,6 +21,7 @@ import EditIcon from "./icons/EditIcon"
 import FavoriteIcon from "./icons/FavoriteIcon"
 import PresentExifBadge from "./PresentExifBadge"
 import PresentFilmstrip from "./PresentFilmstrip"
+import PresentVideoPlayer from "./PresentVideoPlayer"
 
 const StyledPhoto = styled(ProtectedImage)`
   position: absolute;
@@ -454,7 +455,20 @@ const PresentMedia = ({
         </div>
       )
     case MediaType.Video:
-      return <StyledVideo media={media} data-testid="present-video" />
+      return (
+        <PresentVideoPlayer
+          media={media}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          showExif={showExif}
+          onToggleExif={onToggleExif}
+          showFilmstrip={showFilmstrip}
+          onToggleFilmstrip={onToggleFilmstrip}
+          mediaList={mediaList}
+          onSelectMedia={onSelectMedia}
+          hideControls={hideControls}
+        />
+      )
   }
 
   exhaustiveCheck(media.type)
