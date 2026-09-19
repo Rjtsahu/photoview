@@ -14,6 +14,11 @@ You configure Photoview to look for photos and videos within a directory on your
 
 When your media has been scanned, they show up on the website, organised in the same way as on the filesystem.
 
+> [!TIP]
+> **🚀 Enhanced Edition**: This repository includes next-generation features: **Cinematic Netflix-Style Video Player** with smart 4K progressive buffering, **In-Browser Photo Editor Studio**, **Dedicated Videos Tab**, **Optimistic Favorites**, and a **22-test automated verification suite**.
+> 
+> 📖 **[Explore the Complete Feature Guide (docs/FEATURES.md)](./docs/FEATURES.md)** | 🏛️ **[Technical Architecture & Algorithm Guide (docs/ARCHITECTURE.md)](./docs/ARCHITECTURE.md)**
+
 > If you have questions regarding setup or development,
 feel free to join the Discord server [https://discord.gg/jQ392948u9](https://discord.gg/jQ392948u9)
 
@@ -72,6 +77,18 @@ Password: **demo**
     - [Start API server](#start-api-server)
     - [Start UI server](#start-ui-server)
   - [Sponsors](#sponsors)
+
+## ✨ Enhanced Edition Highlights
+
+| Feature | Description |
+| :--- | :--- |
+| 🎬 **Cinematic Video Player** | Custom Netflix-style player with glowing buffer HUD, smart 4K starvation protection, ±10s quick-skip, double-click ripple seek, speed selector, and scrubber time tooltip. |
+| 🎨 **Photo Editor Studio** | Full canvas studio with 6 adjustment sliders (Brightness, Contrast, Saturation, Warmth, Exposure, Sepia), 8 artistic filters, crop & aspect ratios, and full-res export. |
+| 📹 **Dedicated Videos Hub** | Dedicated `/videos` navigation page + in-place Timeline filter pills (**All**, **Photos**, **Videos**). |
+| 🔍 **Zoom & Presentation** | Smooth 8x pan/pinch/zoom, floating toolbar, EXIF metadata HUD (`I`), thumbnail filmstrip (`F`), and optimistic 0ms Favorite toggle (`S`). |
+| 🧪 **Rock-Solid Test Suite** | 22 comprehensive Vitest unit tests guarding viewer interactions, buffering states, speed cycling, and controls visibility. |
+
+For detailed walkthroughs and keyboard shortcuts, see [docs/FEATURES.md](./docs/FEATURES.md).
 
 ## Main features
 
