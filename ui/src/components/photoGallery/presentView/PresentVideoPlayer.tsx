@@ -577,6 +577,7 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
   const [showRemainingTime, setShowRemainingTime] = useState(false)
+  const [isHoveringControls, setIsHoveringControls] = useState(false)
 
   const [controlsVisible, setControlsVisible] = useState(true)
   const [isScrubbing, setIsScrubbing] = useState(false)
@@ -656,18 +657,18 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
     return { ahead, target, cushionPct }
   }, [])
 
-  // Auto-hide controls after 2.5s of inactivity while playing and not buffering
+  // Auto-hide controls after 3s of inactivity while playing and not hovering controls
   const resetAutohideTimer = useCallback(() => {
     setControlsVisible(true)
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
 
-    if (isPlaying && !isScrubbing && !isBuffering) {
+    if (isPlaying && !isScrubbing && !isBuffering && !isHoveringControls) {
       hideTimerRef.current = setTimeout(() => {
         setControlsVisible(false)
         setShowSpeedMenu(false)
-      }, 2500)
+      }, 3000)
     }
-  }, [isPlaying, isScrubbing, isBuffering])
+  }, [isPlaying, isScrubbing, isBuffering, isHoveringControls])
 
   // Play/Pause toggle
   const togglePlay = useCallback(() => {
@@ -986,7 +987,7 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
   const videoUrl = getProtectedUrl(media.videoWeb.url)
   const posterUrl = getProtectedUrl(media.thumbnail?.url)
 
-  const isControlsVisible = !hideControls && (controlsVisible || !isPlaying || isScrubbing || isBuffering)
+  const isControlsVisible = controlsVisible || !isPlaying || isScrubbing || isBuffering || isHoveringControls
 
   return (
     <VideoContainer
@@ -1091,7 +1092,20 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
       </BufferingOverlay>
 
       {/* Top Scrim with Media Title */}
-      <TopScrim visible={isControlsVisible} onClick={e => e.stopPropagation()}>
+      <TopScrim
+        data-testid="video-top-controls"
+        visible={isControlsVisible}
+        onClick={e => e.stopPropagation()}
+        onMouseEnter={() => {
+          setIsHoveringControls(true)
+          if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+          setControlsVisible(true)
+        }}
+        onMouseLeave={() => {
+          setIsHoveringControls(false)
+          resetAutohideTimer()
+        }}
+      >
         <MediaTitle>{media.title || 'Video'}</MediaTitle>
         {showExif && onToggleExif && (
           <PresentExifBadge media={media} onClose={onToggleExif} />
@@ -1099,9 +1113,23 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
       </TopScrim>
 
       {/* Bottom Scrim with Scrubber & Controls */}
-      <BottomScrim visible={isControlsVisible} onClick={e => e.stopPropagation()}>
+      <BottomScrim
+        data-testid="video-bottom-controls"
+        visible={isControlsVisible}
+        onClick={e => e.stopPropagation()}
+        onMouseEnter={() => {
+          setIsHoveringControls(true)
+          if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+          setControlsVisible(true)
+        }}
+        onMouseLeave={() => {
+          setIsHoveringControls(false)
+          resetAutohideTimer()
+        }}
+      >
         {/* Scrubber Progress Bar */}
         <ScrubberWrapper
+          data-testid="video-scrubber"
           onMouseDown={handleScrubberMouseDown}
           onMouseMove={handleScrubberMouseMove}
           onMouseLeave={() => setShowHoverTooltip(false)}
@@ -1126,6 +1154,7 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
           {/* Left Controls: Play, Quick Skip, Volume, Time */}
           <ControlsGroup>
             <PlayPauseButton
+              data-testid="video-play-pause-button"
               onClick={togglePlay}
               aria-label={isPlaying ? 'Pause' : 'Play'}
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
@@ -1203,6 +1232,7 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
             {/* Playback Speed (Click to cycle, click caret for menu) */}
             <SpeedControlWrapper ref={speedMenuRef}>
               <SpeedButton
+                data-testid="video-speed-button"
                 title="Click to cycle speed (0.5x, 1x, 1.25x, 1.5x, 2x) or choose from menu"
                 onClick={e => {
                   e.stopPropagation()
