@@ -20,6 +20,9 @@ const AlbumPage = React.lazy(() => import('../../Pages/AlbumPage/AlbumPage'))
 const TimelinePage = React.lazy(
   () => import('../../Pages/TimelinePage/TimelinePage')
 )
+const VideosPage = React.lazy(
+  () => import('../../Pages/VideosPage/VideosPage')
+)
 const PlacesPage = React.lazy(() => import('../../Pages/PlacesPage/PlacesPage'))
 
 const LoginPage = React.lazy(() => import('../../Pages/LoginPage/LoginPage'))
@@ -89,6 +92,10 @@ const Routes = () => {
     {
       path: '/timeline',
       element: authorized(<TimelinePage />),
+    },
+    {
+      path: '/videos',
+      element: authorized(<VideosPage />),
     },
     {
       path: '/places',

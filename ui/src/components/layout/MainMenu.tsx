@@ -102,6 +102,19 @@ export const MainMenu = () => {
           }
         />
         <MenuButton
+          to="/videos"
+          exact
+          label={t('sidemenu.videos', 'Videos')}
+          background="#a78bfa"
+          activeClasses="ring-[#f5f3ff] bg-[#f5f3ff] dark:bg-[#201933] dark:ring-[#201933]"
+          className="focus:ring-purple-200 dark:focus:ring-[#6b4fa2]"
+          icon={
+            <svg viewBox="0 0 24 24" fill="white">
+              <path d="M4 4h10a2 2 0 0 1 2 2v2.586l3.293-3.293A1 1 0 0 1 21 6v12a1 1 0 0 1-1.707.707L16 15.414V18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+            </svg>
+          }
+        />
+        <MenuButton
           to="/albums"
           exact
           label={t('sidemenu.albums', 'Albums')}

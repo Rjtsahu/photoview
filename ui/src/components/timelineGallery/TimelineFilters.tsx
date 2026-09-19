@@ -3,6 +3,7 @@ import gql from 'graphql-tag'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import Dropdown, { DropdownItem } from '../../primitives/form/Dropdown'
+import Checkbox from '../../primitives/form/Checkbox'
 import { FavoriteCheckboxProps, FavoritesCheckbox } from '../album/AlbumFilter'
 
 import { ReactComponent as DateIcon } from './icons/date.svg'
@@ -85,11 +86,38 @@ const DateSelector = ({ filterDate, setFilterDate }: DateSelectorProps) => {
   )
 }
 
-type TimelineFiltersProps = DateSelectorProps & FavoriteCheckboxProps
+export type VideoCheckboxProps = {
+  onlyVideos: boolean
+  setOnlyVideos(videos: boolean): void
+  hideVideoCheckbox?: boolean
+}
+
+export const VideosCheckbox = ({
+  onlyVideos,
+  setOnlyVideos,
+}: VideoCheckboxProps) => {
+  const { t } = useTranslation()
+
+  return (
+    <Checkbox
+      className="mb-1"
+      label={t('timeline_filter.only_videos', 'Show only videos')}
+      checked={onlyVideos}
+      onChange={e => setOnlyVideos(e.target.checked)}
+    />
+  )
+}
+
+type TimelineFiltersProps = DateSelectorProps &
+  FavoriteCheckboxProps &
+  VideoCheckboxProps
 
 const TimelineFilters = ({
   onlyFavorites,
   setOnlyFavorites,
+  onlyVideos,
+  setOnlyVideos,
+  hideVideoCheckbox,
   filterDate,
   setFilterDate,
 }: TimelineFiltersProps) => {
@@ -100,6 +128,12 @@ const TimelineFilters = ({
         onlyFavorites={onlyFavorites}
         setOnlyFavorites={setOnlyFavorites}
       />
+      {!hideVideoCheckbox && (
+        <VideosCheckbox
+          onlyVideos={onlyVideos}
+          setOnlyVideos={setOnlyVideos}
+        />
+      )}
     </div>
   )
 }
