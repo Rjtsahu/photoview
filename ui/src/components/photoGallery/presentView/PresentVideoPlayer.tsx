@@ -53,7 +53,9 @@ const spinAnimation = keyframes`
 `
 
 const VideoContainer = styled.div<{ isCursorHidden: boolean }>`
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   display: flex;
@@ -63,11 +65,12 @@ const VideoContainer = styled.div<{ isCursorHidden: boolean }>`
   overflow: hidden;
   user-select: none;
   cursor: ${props => (props.isCursorHidden ? 'none' : 'default')};
+  z-index: 10;
 `
 
 const StyledVideoElement = styled.video`
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
   width: auto;
   height: auto;
   outline: none;
@@ -200,11 +203,11 @@ const TopScrim = styled.div<{ visible: boolean }>`
   left: 0;
   right: 0;
   height: 120px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
   pointer-events: ${props => (props.visible ? 'auto' : 'none')};
   opacity: ${props => (props.visible ? 1 : 0)};
-  transition: opacity 300ms ease;
-  z-index: 30;
+  transition: opacity 250ms ease;
+  z-index: 65;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -229,16 +232,37 @@ const BottomScrim = styled.div<{ visible: boolean }>`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 160px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.6) 55%, transparent 100%);
+  min-height: 120px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.65) 60%, transparent 100%);
   pointer-events: ${props => (props.visible ? 'auto' : 'none')};
   opacity: ${props => (props.visible ? 1 : 0)};
-  transition: opacity 300ms ease;
-  z-index: 30;
+  transition: opacity 250ms ease, transform 250ms ease;
+  transform: translateY(${props => (props.visible ? '0px' : '8px')});
+  z-index: 65;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 0 32px 28px;
+`
+
+const FilmstripWrapper = styled.div<{ visible: boolean }>`
+  position: absolute;
+  bottom: 96px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: ${props => (props.visible ? 'auto' : 'none')};
+  opacity: ${props => (props.visible ? 1 : 0)};
+  transition: opacity 250ms ease;
+  z-index: 60;
+
+  & > div {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+  }
 `
 
 // Scrubber Bar
@@ -657,18 +681,39 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
     return { ahead, target, cushionPct }
   }, [])
 
-  // Auto-hide controls after 3s of inactivity while playing and not hovering controls
-  const resetAutohideTimer = useCallback(() => {
+  // Auto-hide controls after 4.5s of inactivity while playing and not hovering controls
+  const resetAutohideTimer = useCallback((mouseY?: number) => {
     setControlsVisible(true)
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
 
-    if (isPlaying && !isScrubbing && !isBuffering && !isHoveringControls) {
+    const isNearBottom = typeof mouseY === 'number' && typeof window !== 'undefined' && mouseY > (window.innerHeight - 200)
+
+    if (isPlaying && !isScrubbing && !isBuffering && !isHoveringControls && !isNearBottom) {
       hideTimerRef.current = setTimeout(() => {
         setControlsVisible(false)
         setShowSpeedMenu(false)
-      }, 3000)
+      }, 4500)
     }
   }, [isPlaying, isScrubbing, isBuffering, isHoveringControls])
+
+  // Global window mousemove and touch listeners to guarantee controls show up on any interaction
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      resetAutohideTimer(e.clientY)
+    }
+
+    const handleGlobalTouch = () => {
+      resetAutohideTimer()
+    }
+
+    window.addEventListener('mousemove', handleGlobalMouseMove, { passive: true })
+    window.addEventListener('touchstart', handleGlobalTouch, { passive: true })
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove)
+      window.removeEventListener('touchstart', handleGlobalTouch)
+    }
+  }, [resetAutohideTimer])
 
   // Play/Pause toggle
   const togglePlay = useCallback(() => {
@@ -822,6 +867,13 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
   const handleVideoClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (showSpeedMenu) {
       setShowSpeedMenu(false)
+    }
+
+    // If controls were hidden, clicking shows them immediately
+    if (!isControlsVisible) {
+      setControlsVisible(true)
+      resetAutohideTimer()
+      return
     }
 
     if (clickTimeoutRef.current) {
@@ -1318,12 +1370,14 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
 
       {/* Bottom Filmstrip */}
       {mediaList && onSelectMedia && (
-        <PresentFilmstrip
-          mediaList={mediaList}
-          activeMedia={media}
-          visible={Boolean(showFilmstrip)}
-          onSelectMedia={onSelectMedia}
-        />
+        <FilmstripWrapper visible={Boolean(showFilmstrip)}>
+          <PresentFilmstrip
+            mediaList={mediaList}
+            activeMedia={media}
+            visible={Boolean(showFilmstrip)}
+            onSelectMedia={onSelectMedia}
+          />
+        </FilmstripWrapper>
       )}
     </VideoContainer>
   )

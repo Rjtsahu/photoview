@@ -108,3 +108,25 @@ test('bottom controls remain visible when hovering over the toolbar', () => {
   fireEvent.mouseEnter(bottomControls)
   expect(bottomControls).toHaveStyle({ opacity: '1' })
 })
+
+test('global window mousemove triggers controls visibility', () => {
+  render(<PresentMedia media={sampleVideoMedia} />)
+
+  const bottomControls = screen.getByTestId('video-bottom-controls')
+  expect(bottomControls).toHaveStyle({ opacity: '1' })
+
+  // Trigger window mousemove
+  fireEvent.mouseMove(window, { clientX: 500, clientY: 400 })
+  expect(bottomControls).toHaveStyle({ opacity: '1' })
+})
+
+test('clicking on video area wakes up controls', () => {
+  render(<PresentMedia media={sampleVideoMedia} />)
+
+  const videoContainer = screen.getByTestId('netflix-video-player')
+  const bottomControls = screen.getByTestId('video-bottom-controls')
+
+  // Click on video area
+  fireEvent.click(videoContainer)
+  expect(bottomControls).toHaveStyle({ opacity: '1' })
+})

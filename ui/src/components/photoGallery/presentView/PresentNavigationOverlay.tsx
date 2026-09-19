@@ -111,7 +111,7 @@ const PresentNavigationOverlay = ({
         onMouseMove.current && onMouseMove.current()
       }}
     >
-      <div {...handlers}>
+      <div {...handlers} style={{ width: '100%', height: '100%', position: 'relative' }}>
         {React.isValidElement(children)
           ? React.cloneElement(children as React.ReactElement<any>, { hideControls: hide })
           : children}
