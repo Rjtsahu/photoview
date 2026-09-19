@@ -197,6 +197,10 @@ func (fd *faceDetector) MergeCategories(sourceID int32, destID int32) {
 			fd.faceGroupIDs[i] = destID
 		}
 	}
+
+	if fd.rec != nil && len(fd.faceDescriptors) > 0 {
+		fd.rec.SetSamples(fd.faceDescriptors, fd.faceGroupIDs)
+	}
 }
 
 func (fd *faceDetector) MergeImageFaces(imageFaceIDs []int, destFaceGroupID int32) {
@@ -212,6 +216,10 @@ func (fd *faceDetector) MergeImageFaces(imageFaceIDs []int, destFaceGroupID int3
 				break
 			}
 		}
+	}
+
+	if fd.rec != nil && len(fd.faceDescriptors) > 0 {
+		fd.rec.SetSamples(fd.faceDescriptors, fd.faceGroupIDs)
 	}
 }
 

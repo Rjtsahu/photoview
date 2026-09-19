@@ -6,16 +6,10 @@ import {
   ReactZoomPanPinchContentRef,
   ReactZoomPanPinchRef,
 } from "react-zoom-pan-pinch"
-import { useQuery } from "@apollo/client"
 import { MediaType } from "../../../__generated__/globalTypes"
 import { exhaustiveCheck } from "../../../helpers/utils"
 import { ProtectedImage, ProtectedVideo } from "../ProtectedMedia"
 import { MediaGalleryFields } from "../__generated__/MediaGalleryFields"
-import { SIDEBAR_DOWNLOAD_QUERY } from "../../sidebar/SidebarDownloadMedia"
-import {
-  sidebarDownloadQuery,
-  sidebarDownloadQueryVariables,
-} from "../../sidebar/__generated__/sidebarDownloadQuery"
 
 import ZoomInIcon from "./icons/ZoomIn"
 import ZoomOutIcon from "./icons/ZoomOut"
@@ -24,8 +18,10 @@ import RotateIcon from "./icons/Rotate"
 import InfoIcon from "./icons/InfoIcon"
 import FilmstripIcon from "./icons/Filmstrip"
 import EditIcon from "./icons/EditIcon"
+import FavoriteIcon from "./icons/FavoriteIcon"
 import PresentExifBadge from "./PresentExifBadge"
 import PresentFilmstrip from "./PresentFilmstrip"
+import PresentVideoPlayer from "./PresentVideoPlayer"
 
 const StyledPhoto = styled(ProtectedImage)`
   position: absolute;
@@ -177,6 +173,8 @@ type PresentMediaProps = {
   showFilmstrip?: boolean
   onToggleFilmstrip?: () => void
   onToggleEdit?: () => void
+  isFavorite?: boolean
+  onToggleFavorite?: () => void
   mediaList?: MediaGalleryFields[]
   onSelectMedia?: (media: MediaGalleryFields, index: number) => void
 }
@@ -192,14 +190,15 @@ const PresentMedia = ({
   showFilmstrip = false,
   onToggleFilmstrip,
   onToggleEdit,
+  isFavorite,
+  onToggleFavorite,
   mediaList,
   onSelectMedia,
   ...otherProps
 }: PresentMediaProps & Record<string, any>) => {
   const transformComponentRef = useRef<ReactZoomPanPinchContentRef | null>(null)
   const [scale, setScale] = useState(1)
-  const [loadHd, setLoadHd] = useState(false)
-  const [hdLoaded, setHdLoaded] = useState(false)
+  const [highResLoaded, setHighResLoaded] = useState(false)
   const [windowSize, setWindowSize] = useState({
     w: typeof window !== "undefined" ? window.innerWidth : 1920,
     h: typeof window !== "undefined" ? window.innerHeight : 1080,
@@ -213,34 +212,12 @@ const PresentMedia = ({
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Reset zoom & HD state whenever media changes
+  // Reset zoom & high-res load state whenever media changes
   useEffect(() => {
     transformComponentRef.current?.resetTransform()
     setScale(1)
-    setLoadHd(false)
-    setHdLoaded(false)
+    setHighResLoaded(false)
   }, [media.id])
-
-  // Query downloads when HD is requested
-  const { data: downloadData, loading: downloadLoading } = useQuery<
-    sidebarDownloadQuery,
-    sidebarDownloadQueryVariables
-  >(SIDEBAR_DOWNLOAD_QUERY, {
-    variables: { mediaId: media.id },
-    skip: !loadHd,
-    fetchPolicy: "cache-first",
-  })
-
-  // Extract master download URL
-  const downloads = downloadData?.media?.downloads
-  const masterDownload =
-    downloads?.find(d => d.title.toLowerCase().includes("original")) ||
-    (downloads && downloads.length > 0
-      ? [...downloads].sort(
-          (a, b) => (b.mediaUrl.fileSize || 0) - (a.mediaUrl.fileSize || 0)
-        )[0]
-      : null)
-  const masterUrl = masterDownload?.mediaUrl?.url
 
   const isRotatedSideways = rotation % 180 !== 0
   const sidewaysScale = isRotatedSideways
@@ -306,31 +283,34 @@ const PresentMedia = ({
                       transition: "transform 200ms cubic-bezier(0.2, 0, 0, 1)",
                     }}
                   >
+                    {/* Low-res thumbnail: visible instantly until the original full-res image loads */}
                     <StyledPhoto
                       key={`${media.id}-thumb`}
                       src={media.thumbnail?.url}
                       data-testid="present-img-thumbnail"
-                    />
-                    <StyledPhoto
-                      key={`${media.id}-highres`}
-                      style={{ display: "none" }}
-                      src={media.highRes?.url}
-                      data-testid="present-img-highres"
-                      onLoad={e => {
-                        const elem = e.target as HTMLImageElement
-                        elem.style.display = "initial"
-                        imageLoaded && imageLoaded()
+                      style={{
+                        display: highResLoaded ? "none" : "block",
                       }}
                     />
-                    {loadHd && masterUrl && (
-                      <StyledPhoto
-                        key={`${media.id}-master`}
-                        style={{ display: hdLoaded ? "initial" : "none" }}
-                        src={masterUrl}
-                        data-testid="present-img-master"
-                        onLoad={() => setHdLoaded(true)}
-                      />
-                    )}
+                    {/* Full-resolution original photo */}
+                    <StyledPhoto
+                      key={`${media.id}-highres`}
+                      src={media.highRes?.url}
+                      data-testid="present-img-highres"
+                      style={{
+                        display: highResLoaded ? "block" : "none",
+                      }}
+                      onLoad={() => {
+                        setHighResLoaded(true)
+                        imageLoaded && imageLoaded()
+                      }}
+                      ref={img => {
+                        if (img && img.complete && img.naturalWidth > 0 && !highResLoaded) {
+                          setHighResLoaded(true)
+                          imageLoaded && imageLoaded()
+                        }
+                      }}
+                    />
                   </div>
                 </TransformComponent>
 
@@ -407,26 +387,34 @@ const PresentMedia = ({
 
                   <ToolbarDivider />
 
-                  {/* On-Demand HD Master button */}
+                  {/* HD Quality indicator */}
                   <HdButton
-                    active={loadHd}
+                    active={highResLoaded}
                     title={
-                      hdLoaded
-                        ? "Master resolution loaded"
-                        : loadHd && downloadLoading
-                        ? "Loading original master..."
-                        : "Load original master quality"
+                      highResLoaded
+                        ? `Original full resolution active${
+                            media.highRes?.width ? ` (${media.highRes.width} × ${media.highRes.height})` : ""
+                          }`
+                        : "Loading full resolution original..."
                     }
-                    onClick={() => {
-                      if (!loadHd) {
-                        setLoadHd(true)
-                      }
-                    }}
                   >
-                    {hdLoaded ? "HD ✓" : loadHd ? "HD..." : "HD"}
+                    {highResLoaded ? "HD" : "HD..."}
                   </HdButton>
 
                   <ToolbarDivider />
+
+                  {/* Favorite Toggle Button */}
+                  {onToggleFavorite && (
+                    <ZoomToolbarButton
+                      active={isFavorite}
+                      aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                      title={isFavorite ? "Remove from favorites (s)" : "Add to favorites (s)"}
+                      onClick={onToggleFavorite}
+                      style={isFavorite ? { color: "#f43f5e" } : undefined}
+                    >
+                      <FavoriteIcon filled={isFavorite} />
+                    </ZoomToolbarButton>
+                  )}
 
                   {/* EXIF Info HUD Toggle */}
                   {onToggleExif && (
@@ -454,18 +442,33 @@ const PresentMedia = ({
                 </ZoomToolbar>
 
                 {/* EXIF Metadata HUD Badge */}
-                <PresentExifBadge
-                  media={media}
-                  visible={showExif}
-                  hideControls={hideControls}
-                />
+                {showExif && (
+                  <PresentExifBadge
+                    media={media}
+                    visible={showExif}
+                    hideControls={hideControls}
+                  />
+                )}
               </>
             )}
           </TransformWrapper>
         </div>
       )
     case MediaType.Video:
-      return <StyledVideo media={media} data-testid="present-video" />
+      return (
+        <PresentVideoPlayer
+          media={media}
+          isFavorite={isFavorite}
+          onToggleFavorite={onToggleFavorite}
+          showExif={showExif}
+          onToggleExif={onToggleExif}
+          showFilmstrip={showFilmstrip}
+          onToggleFilmstrip={onToggleFilmstrip}
+          mediaList={mediaList}
+          onSelectMedia={onSelectMedia}
+          hideControls={hideControls}
+        />
+      )
   }
 
   exhaustiveCheck(media.type)

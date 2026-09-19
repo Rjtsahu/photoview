@@ -431,4 +431,31 @@ describe('timeline gallery reducer', () => {
       presenting: false,
     })
   })
+
+  test('replace timeline groups preserves active image in present mode', () => {
+    // Put reducer in presenting mode with active image 1058 (date 0, album 0, media 0)
+    const presentingState: TimelineGalleryState = {
+      ...defaultState,
+      presenting: true,
+      activeIndex: {
+        date: 0,
+        album: 0,
+        media: 0,
+      },
+    }
+
+    // Simulate new data coming in from Apollo cache update
+    const updatedState = timelineGalleryReducer(presentingState, {
+      type: 'replaceTimelineGroups',
+      timeline: timelineData,
+    })
+
+    expect(updatedState.presenting).toBe(true)
+    expect(updatedState.activeIndex).toEqual({
+      date: 0,
+      album: 0,
+      media: 0,
+    })
+  })
+
 })

@@ -5,6 +5,10 @@ import PresentMedia from "./PresentMedia"
 import PresentPhotoEditor from "./PresentPhotoEditor"
 import { closePresentModeAction, GalleryAction } from "../mediaGalleryReducer"
 import { MediaGalleryFields } from "../__generated__/MediaGalleryFields"
+import {
+  useMarkFavoriteMutation,
+  toggleFavoriteAction,
+} from "../photoGalleryMutations"
 
 const StyledContainer = styled.div`
   position: fixed;
@@ -46,12 +50,13 @@ const PresentView = ({
   const [showExif, setShowExif] = useState(false)
   const [showFilmstrip, setShowFilmstrip] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
+  const [markFavorite] = useMarkFavoriteMutation()
 
   // Reset rotation and editing when media changes
   useEffect(() => {
     setRotation(0)
     setIsEditing(false)
-  }, [activeMedia.id])
+  }, [activeMedia?.id])
 
   useEffect(() => {
     const keyDownEvent = (e: KeyboardEvent) => {
@@ -88,6 +93,13 @@ const PresentView = ({
         setIsEditing(true)
       }
 
+      if (e.key === "s" || e.key === "S") {
+        e.stopPropagation()
+        if (activeMedia) {
+          toggleFavoriteAction({ media: activeMedia, markFavorite })
+        }
+      }
+
       if (e.key === "r" || e.key === "R") {
         e.stopPropagation()
         setRotation(r => (r + 90) % 360)
@@ -109,7 +121,11 @@ const PresentView = ({
     return function cleanup() {
       document.removeEventListener("keydown", keyDownEvent)
     }
-  }, [dispatchMedia, disableSaveCloseInHistory, isEditing])
+  }, [dispatchMedia, disableSaveCloseInHistory, isEditing, activeMedia, markFavorite])
+
+  if (!activeMedia) {
+    return null
+  }
 
   return (
     <StyledContainer className={className}>
@@ -134,6 +150,8 @@ const PresentView = ({
             showFilmstrip={showFilmstrip}
             onToggleFilmstrip={() => setShowFilmstrip(s => !s)}
             onToggleEdit={() => setIsEditing(true)}
+            isFavorite={activeMedia.favorite}
+            onToggleFavorite={() => toggleFavoriteAction({ media: activeMedia, markFavorite })}
             mediaList={mediaList}
             onSelectMedia={onSelectMedia}
           />

@@ -70,7 +70,15 @@ export type TimelineGroupAlbum = {
   media: myTimeline_myTimeline[]
 }
 
-const TimelineGallery = () => {
+export type TimelineGalleryProps = {
+  defaultOnlyVideos?: boolean
+  hideVideoCheckbox?: boolean
+}
+
+const TimelineGallery = ({
+  defaultOnlyVideos,
+  hideVideoCheckbox,
+}: TimelineGalleryProps = {}) => {
   const { t } = useTranslation()
 
   const { getParam, setParam } = useURLParameters()
@@ -78,6 +86,19 @@ const TimelineGallery = () => {
   const onlyFavorites = getParam('favorites') == '1' ? true : false
   const setOnlyFavorites = (favorites: boolean) =>
     setParam('favorites', favorites ? '1' : null)
+
+  const rawVideosParam = getParam('videos')
+  const onlyVideos =
+    rawVideosParam !== null
+      ? rawVideosParam === '1'
+      : defaultOnlyVideos ?? false
+  const setOnlyVideos = (videos: boolean) => {
+    if (defaultOnlyVideos) {
+      setParam('videos', videos ? null : '0')
+    } else {
+      setParam('videos', videos ? '1' : null)
+    }
+  }
 
   const filterDate = getParam('date')
   const setFilterDate = (x: string) => setParam('date', x)
@@ -116,12 +137,41 @@ const TimelineGallery = () => {
       getItems: data => data.myTimeline,
     })
 
+  const timelineData = useMemo(() => {
+    const raw = data?.myTimeline || []
+    if (!onlyVideos) return raw
+    return raw.filter(m => m.type?.toLowerCase() === 'video')
+  }, [data?.myTimeline, onlyVideos])
+
   useEffect(() => {
     dispatchMedia({
       type: 'replaceTimelineGroups',
-      timeline: data?.myTimeline || [],
+      timeline: timelineData,
     })
-  }, [data])
+  }, [timelineData])
+
+  useEffect(() => {
+    if (
+      onlyVideos &&
+      !finishedLoadingMore &&
+      !loading &&
+      (data?.myTimeline?.length || 0) > 0 &&
+      timelineData.length < 24
+    ) {
+      fetchMore({
+        variables: {
+          offset: data?.myTimeline?.length || 0,
+        },
+      })
+    }
+  }, [
+    onlyVideos,
+    timelineData.length,
+    data?.myTimeline?.length,
+    finishedLoadingMore,
+    loading,
+    fetchMore,
+  ])
 
   useEffect(() => {
     ; (async () => {
@@ -190,6 +240,9 @@ const TimelineGallery = () => {
       <TimelineFilters
         onlyFavorites={onlyFavorites}
         setOnlyFavorites={setOnlyFavorites}
+        onlyVideos={onlyVideos}
+        setOnlyVideos={setOnlyVideos}
+        hideVideoCheckbox={hideVideoCheckbox}
         filterDate={filterDate}
         setFilterDate={setFilterDate}
       />
@@ -200,7 +253,7 @@ const TimelineGallery = () => {
         active={!finishedLoadingMore && !loading}
         text={t('general.loading.paginate.media', 'Loading more media')}
       />
-      {mediaState.presenting && (
+      {mediaState.presenting && getActiveTimelineMedia({ mediaState }) && (
         <PresentView
           activeMedia={getActiveTimelineMedia({ mediaState })!}
           dispatchMedia={dispatchMedia}
