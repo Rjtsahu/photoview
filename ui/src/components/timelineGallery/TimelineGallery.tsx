@@ -325,6 +325,14 @@ const TimelineGallery = ({
           activeMedia={getActiveTimelineMedia({ mediaState })!}
           dispatchMedia={dispatchMedia}
           mediaList={flatTimelineMedia.map(x => x.media)}
+          onSelectMedia={(_media, index) => {
+            if (flatTimelineMedia[index]) {
+              dispatchMedia({
+                type: 'selectImage',
+                index: flatTimelineMedia[index].index,
+              })
+            }
+          }}
         />
       )}
     </div>
