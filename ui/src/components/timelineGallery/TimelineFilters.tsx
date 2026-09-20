@@ -131,17 +131,17 @@ export const DateSelector = ({ dateFilter, setDateFilter }: DateSelectorProps) =
   const badgeLabel = getActiveFilterBadgeLabel(dateFilter)
 
   return (
-    <fieldset className="flex items-center gap-2 flex-wrap">
+    <fieldset className="flex items-center gap-3 flex-wrap">
       <legend id="filter_group_date-label" className="sr-only">
         {t('timeline_filter.date.label', 'Date')}
       </legend>
       <div className="flex items-center gap-2">
         <label
           htmlFor="date-range-select"
-          className="inline-flex items-center text-sm font-medium text-gray-700 dark:text-gray-300"
+          className="inline-flex items-center text-sm font-semibold text-gray-700 dark:text-gray-200 cursor-pointer select-none"
         >
           <DateIcon
-            className="inline-block align-baseline mr-1 text-gray-500 dark:text-gray-400"
+            className="inline-block align-baseline mr-1.5 text-gray-500 dark:text-gray-400 w-4 h-4"
             aria-hidden="true"
           />
           <span>{t('timeline_filter.date.label', 'Date')}</span>
@@ -153,17 +153,25 @@ export const DateSelector = ({ dateFilter, setDateFilter }: DateSelectorProps) =
           value={selectedValue}
           items={items}
           disabled={loading}
+          className="h-[36px] text-sm font-medium px-3 pr-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-dark-input-bg text-gray-800 dark:text-gray-100 hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
         />
       </div>
 
       {dateFilter.preset === 'custom' && (
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-dark-input-bg/70 px-2.5 py-1 rounded-md border border-gray-200 dark:border-dark-input-border text-xs">
-          <label className="flex items-center gap-1">
-            <span className="text-gray-600 dark:text-gray-300 font-medium">From:</span>
+        <div className="flex items-center gap-2.5 bg-white/95 dark:bg-[#1e2533] px-3.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm transition-all">
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-400 select-none">
+              From
+            </span>
             <input
               type="date"
               aria-label="Start date"
               value={dateFilter.startDate || ''}
+              onClick={e => {
+                try {
+                  e.currentTarget.showPicker?.()
+                } catch {}
+              }}
               onChange={e =>
                 setDateFilter({
                   ...dateFilter,
@@ -171,15 +179,27 @@ export const DateSelector = ({ dateFilter, setDateFilter }: DateSelectorProps) =
                   startDate: e.target.value || null,
                 })
               }
-              className="bg-white dark:bg-dark-input-bg border border-gray-300 dark:border-dark-input-border text-gray-900 dark:text-dark-input-text rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-blue-400"
+              className="cursor-pointer bg-gray-50 dark:bg-[#283144] border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-100 text-sm font-medium rounded-md px-3 py-1 h-[34px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 hover:bg-gray-100 dark:hover:bg-[#313c53] transition-colors [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 dark:[&::-webkit-calendar-picker-indicator]:filter dark:[&::-webkit-calendar-picker-indicator]:invert-[0.8]"
             />
-          </label>
-          <label className="flex items-center gap-1">
-            <span className="text-gray-600 dark:text-gray-300 font-medium">To:</span>
+          </div>
+
+          <span className="text-gray-400 dark:text-gray-500 font-bold text-sm select-none px-0.5">
+            →
+          </span>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-400 select-none">
+              To
+            </span>
             <input
               type="date"
               aria-label="End date"
               value={dateFilter.endDate || ''}
+              onClick={e => {
+                try {
+                  e.currentTarget.showPicker?.()
+                } catch {}
+              }}
               onChange={e =>
                 setDateFilter({
                   ...dateFilter,
@@ -187,15 +207,15 @@ export const DateSelector = ({ dateFilter, setDateFilter }: DateSelectorProps) =
                   endDate: e.target.value || null,
                 })
               }
-              className="bg-white dark:bg-dark-input-bg border border-gray-300 dark:border-dark-input-border text-gray-900 dark:text-dark-input-text rounded px-1.5 py-0.5 text-xs focus:outline-none focus:border-blue-400"
+              className="cursor-pointer bg-gray-50 dark:bg-[#283144] border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-100 text-sm font-medium rounded-md px-3 py-1 h-[34px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 hover:bg-gray-100 dark:hover:bg-[#313c53] transition-colors [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 dark:[&::-webkit-calendar-picker-indicator]:filter dark:[&::-webkit-calendar-picker-indicator]:invert-[0.8]"
             />
-          </label>
+          </div>
         </div>
       )}
 
       {badgeLabel && (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition-all">
-          <span>{badgeLabel}</span>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shadow-sm transition-all">
+          <span className="leading-none">{badgeLabel}</span>
           <button
             type="button"
             onClick={() =>
@@ -208,7 +228,7 @@ export const DateSelector = ({ dateFilter, setDateFilter }: DateSelectorProps) =
             }
             aria-label="Clear date filter"
             title="Clear date filter"
-            className="hover:bg-blue-200 dark:hover:bg-blue-800/60 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold leading-none transition-colors"
+            className="hover:bg-blue-200 dark:hover:bg-blue-700/60 text-blue-600 dark:text-blue-300 rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold leading-none transition-colors ml-0.5"
           >
             ✕
           </button>
