@@ -262,10 +262,7 @@ export const VideosCheckbox = ({
 
 export type TimelineFiltersProps = DateSelectorProps &
   FavoriteCheckboxProps &
-  VideoCheckboxProps & {
-    showMap?: boolean
-    onToggleMap?: () => void
-  }
+  VideoCheckboxProps
 
 const TimelineFilters = ({
   onlyFavorites,
@@ -275,8 +272,6 @@ const TimelineFilters = ({
   hideVideoCheckbox,
   dateFilter,
   setDateFilter,
-  showMap = false,
-  onToggleMap,
 }: TimelineFiltersProps) => {
   return (
     <div className="flex items-center gap-4 flex-wrap mb-4">
@@ -290,22 +285,6 @@ const TimelineFilters = ({
           onlyVideos={onlyVideos}
           setOnlyVideos={setOnlyVideos}
         />
-      )}
-      {onToggleMap && (
-        <button
-          type="button"
-          onClick={onToggleMap}
-          data-testid="timeline-toggle-map"
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
-            showMap
-              ? 'bg-sky-500 text-white border-sky-400 shadow-md ring-2 ring-sky-400/30'
-              : 'bg-white/10 dark:bg-white/5 hover:bg-white/20 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700'
-          }`}
-          title="Toggle map layout"
-        >
-          <span>🗺️</span>
-          <span>{showMap ? 'Hide Map' : 'Map View'}</span>
-        </button>
       )}
     </div>
   )

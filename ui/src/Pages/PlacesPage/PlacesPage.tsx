@@ -1,65 +1,62 @@
 import { gql, useQuery, useLazyQuery } from '@apollo/client'
-import type mapboxgl from 'mapbox-gl'
-import React, { useReducer, useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Helmet } from 'react-helmet'
 import { useTranslation } from 'react-i18next'
 import styled from 'styled-components'
 import Layout from '../../components/layout/Layout'
-import { registerMediaMarkers } from '../../components/mapbox/mapboxHelperFunctions'
-import useMapboxMap from '../../components/mapbox/MapboxMap'
-import { MapLayerType } from '../../components/mapbox/mapStyles'
-import { urlPresentModeSetupHook } from '../../components/photoGallery/mediaGalleryReducer'
 import PresentView from '../../components/photoGallery/presentView/PresentView'
-import { MediaMarker } from './MapPresentMarker'
-import { PlacesAction, placesReducer } from './placesReducer'
-import { mediaGeoJson } from './__generated__/mediaGeoJson'
-import PlacesMediaDrawer from './PlacesMediaDrawer'
 import { MediaGalleryFields } from '../../components/photoGallery/__generated__/MediaGalleryFields'
+import { mediaGeoJson } from './__generated__/mediaGeoJson'
 import {
   placePageQueryMedia,
   placePageQueryMediaVariables,
 } from './__generated__/placePageQueryMedia'
+import { getCachedReverseGeocode, resolveReverseGeocodeAsync, LocationInfo } from './reverseGeocode'
 
-const MapWrapper = styled.div`
+const PageContainer = styled.div`
   width: 100%;
-  height: calc(100vh - 72px);
-  position: relative;
-  overflow: hidden;
+  min-height: calc(100vh - 120px);
+  padding: 0 0 60px 0;
 `
 
-const FloatingControlBar = styled.div`
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  z-index: 25;
+const HeaderSection = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  pointer-events: none;
-
-  & > * {
-    pointer-events: auto;
-  }
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-    top: 12px;
-    left: 12px;
-    right: 12px;
-  }
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 `
 
-const LeftControls = styled.div`
+const PageTitleGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`
+
+const MainHeading = styled.h1`
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+
+  @media (prefers-color-scheme: dark) {
+    color: #f9fafb;
+  }
 `
 
-const SearchBoxContainer = styled.div`
+const Subtitle = styled.div`
+  font-size: 13.5px;
+  color: #6b7280;
+
+  @media (prefers-color-scheme: dark) {
+    color: #9ca3af;
+  }
+`
+
+const SearchInputWrapper = styled.div`
   position: relative;
   width: 280px;
 
@@ -70,84 +67,210 @@ const SearchBoxContainer = styled.div`
 
 const SearchInput = styled.input`
   width: 100%;
-  height: 38px;
-  padding: 0 14px 0 34px;
-  border-radius: 19px;
-  background: rgba(18, 18, 22, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  color: #ffffff;
-  font-size: 13px;
+  height: 40px;
+  padding: 0 16px 0 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(156, 163, 175, 0.4);
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 13.5px;
+  color: #111827;
   outline: none;
-  transition: all 200ms ease;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
+  transition: all 180ms ease;
 
   &:focus {
-    border-color: #00d2ff;
-    background: rgba(18, 18, 22, 0.95);
-    box-shadow: 0 4px 24px rgba(0, 210, 255, 0.25);
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    background: #1e1e24;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #f3f4f6;
+
+    &:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+    }
   }
 `
 
 const SearchIcon = styled.span`
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.5);
+  color: #9ca3af;
   font-size: 14px;
   pointer-events: none;
 `
 
-const LayerButtonGroup = styled.div`
-  display: flex;
-  align-items: center;
-  background: rgba(18, 18, 22, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 20px;
-  padding: 3px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+const CityGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
 `
 
-const LayerButton = styled.button<{ active: boolean }>`
-  background: ${props => (props.active ? '#0284c7' : 'transparent')};
-  color: ${props => (props.active ? '#ffffff' : 'rgba(255, 255, 255, 0.75)')};
-  border: none;
+const CityCard = styled.div`
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 16px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 500;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms ease, border-color 200ms ease;
 
   &:hover {
-    color: #ffffff;
-    background: ${props => (props.active ? '#0284c7' : 'rgba(255, 255, 255, 0.1)')};
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+    border-color: #0284c7;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    background: #18181b;
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+
+    &:hover {
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+      border-color: #38bdf8;
+    }
   }
 `
 
-const StatsPill = styled.div`
-  background: rgba(18, 18, 22, 0.82);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+const CoverPhotoWrapper = styled.div`
+  position: relative;
+  width: 100%;
+  height: 180px;
+  background: #27272a;
+  overflow: hidden;
+`
+
+const CoverImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms ease;
+
+  ${CityCard}:hover & {
+    transform: scale(1.05);
+  }
+`
+
+const CountBadge = styled.div`
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
   border-radius: 20px;
-  padding: 6px 14px;
-  color: #38bdf8;
-  font-size: 12px;
+  padding: 3px 10px;
+  font-size: 11.5px;
   font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+`
+
+const CardInfo = styled.div`
+  padding: 14px 16px;
+`
+
+const CityName = styled.h2`
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 4px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (prefers-color-scheme: dark) {
+    color: #f9fafb;
+  }
+`
+
+const RegionCountry = styled.div`
+  font-size: 13px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (prefers-color-scheme: dark) {
+    color: #9ca3af;
+  }
+`
+
+// Detail View Styles
+const DetailHeader = styled.div`
   display: flex;
   align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+`
+
+const BackButton = styled.button`
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #111827;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  white-space: nowrap;
+  transition: all 150ms ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f3f4f6;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  }
+`
+
+const MediaGalleryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+`
+
+const MediaCard = styled.div`
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #27272a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border-color: #00d2ff;
+  }
+`
+
+const Thumbnail = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 `
 
 const MAPBOX_DATA_QUERY = gql`
@@ -182,199 +305,113 @@ const QUERY_MEDIA = gql`
   }
 `
 
-export type PresentMarker = {
-  id: number | string
-  cluster: boolean
+interface CityCluster {
+  id: string
+  name: string
+  region: string
+  country: string
+  coverUrl: string
+  photoCount: number
+  mediaIds: string[]
 }
 
-const getMediaFromMarker = (map: mapboxgl.Map, presentMarker: PresentMarker) =>
-  new Promise<MediaMarker[]>((resolve, reject) => {
-    const { cluster, id } = presentMarker
-
-    if (cluster) {
-      const mediaSource = map.getSource('media') as mapboxgl.GeoJSONSource
-      if (!mediaSource) {
-        resolve([])
-        return
-      }
-
-      mediaSource.getClusterLeaves(id as number, 1000, 0, (error, features) => {
-        if (error) {
-          reject(error)
-          return
-        }
-        const media = features.map(feat => feat.properties) as MediaMarker[]
-        resolve(media)
-      })
-    } else {
-      const features = map.querySourceFeatures('media')
-      const media = features.find(f => f.properties?.media_id == id)
-        ?.properties as MediaMarker | undefined
-
-      if (media === undefined) {
-        resolve([])
-        return
-      }
-
-      resolve([media])
-    }
-  })
-
-const MapPage = () => {
+const PlacesPage = () => {
   const { t } = useTranslation()
-  const [currentLayer, setCurrentLayer] = useState<MapLayerType>('dark')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [drawerMediaList, setDrawerMediaList] = useState<MediaGalleryFields[]>([])
-  const [drawerLoading, setDrawerLoading] = useState(false)
+  const [searchFilter, setSearchFilter] = useState('')
+  const [selectedCity, setSelectedCity] = useState<CityCluster | null>(null)
+  const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null)
+  const [detailedMedia, setDetailedMedia] = useState<MediaGalleryFields[]>([])
 
-  const { data: mapboxData } = useQuery<mediaGeoJson>(MAPBOX_DATA_QUERY, {
+  const { data: geoData, loading: geoLoading } = useQuery<mediaGeoJson>(MAPBOX_DATA_QUERY, {
     fetchPolicy: 'cache-first',
   })
 
-  const [markerMediaState, dispatchMarkerMedia] = useReducer(placesReducer, {
-    presenting: false,
-    activeIndex: -1,
-    media: [],
-  })
-
-  const [loadMedia] = useLazyQuery<
+  const [loadMedia, { loading: mediaLoading }] = useLazyQuery<
     placePageQueryMedia,
     placePageQueryMediaVariables
   >(QUERY_MEDIA)
 
-  const handleClusterSelect = useCallback((marker: MediaMarker) => {
-    if (!mapboxMap) return
+  // Aggregate GeoJSON points into Cities using Reverse Geocoding
+  const cityClusters = useMemo<CityCluster[]>(() => {
+    const rawFeatures = (geoData?.myMediaGeoJson as any)?.features || []
+    const groups: { [key: string]: CityCluster } = {}
 
-    setDrawerOpen(true)
-    setDrawerLoading(true)
+    for (const feat of rawFeatures) {
+      const coords = feat.geometry?.coordinates
+      if (!coords || coords.length !== 2) continue
 
-    const clusterId = marker.cluster ? marker.cluster_id : marker.media_id
-    const isCluster = !!marker.cluster
+      const lon = coords[0]
+      const lat = coords[1]
 
-    getMediaFromMarker(mapboxMap, { id: clusterId, cluster: isCluster })
-      .then(mediaMarkers => {
-        const ids = mediaMarkers.map(x => x.media_id)
-        if (ids.length === 0) {
-          setDrawerMediaList([])
-          setDrawerLoading(false)
-          return
+      // Filter invalid 0.0, 0.0 coordinates
+      if (Math.abs(lat) < 0.01 && Math.abs(lon) < 0.01) continue
+
+      const loc = getCachedReverseGeocode(lat, lon)
+      if (!loc) continue
+
+      const clusterKey = `${loc.city}__${loc.region}`
+      let thumbUrl = ''
+      try {
+        if (typeof feat.properties?.thumbnail === 'string') {
+          thumbUrl = JSON.parse(feat.properties.thumbnail).url
+        } else if (feat.properties?.thumbnail?.url) {
+          thumbUrl = feat.properties.thumbnail.url
         }
+      } catch {}
 
-        loadMedia({
-          variables: { mediaIDs: ids },
-        }).then(res => {
-          const fetched = (res.data?.mediaList || []) as MediaGalleryFields[]
-          setDrawerMediaList(fetched)
-          setDrawerLoading(false)
-        })
-      })
-      .catch(err => {
-        console.error('Failed to get media from marker:', err)
-        setDrawerLoading(false)
-      })
-  }, [loadMedia])
+      const mediaId = String(feat.properties?.media_id || '')
 
-  const { mapContainer, mapboxMap, mapboxToken } = useMapboxMap({
-    layerType: currentLayer,
-    configureMapbox: (map, mapboxLibrary) => {
-      map.addControl(new mapboxLibrary.NavigationControl(), 'bottom-right')
-
-      map.on('load', () => {
-        if (!map) return
-
-        map.addSource('media', {
-          type: 'geojson',
-          data: mapboxData?.myMediaGeoJson as never,
-          cluster: true,
-          clusterRadius: 50,
-          clusterProperties: {
-            thumbnail: ['coalesce', ['get', 'thumbnail'], false],
-          },
-        })
-
-        map.addLayer({
-          id: 'media-points',
-          type: 'circle',
-          source: 'media',
-          filter: ['!', true],
-        })
-
-        registerMediaMarkers({
-          map,
-          mapboxLibrary,
-          dispatchMarkerMedia,
-          onSelectCluster: (marker) => {
-            handleClusterSelect(marker)
-          },
-        })
-
-        // Auto fit bounds to media points if any
-        try {
-          const geojson = mapboxData?.myMediaGeoJson as any
-          if (geojson?.features && geojson.features.length > 0) {
-            const bounds = new mapboxLibrary.LngLatBounds()
-            geojson.features.forEach((feat: any) => {
-              const coords = feat.geometry?.coordinates
-              if (coords && coords.length === 2) {
-                bounds.extend(coords)
-              }
-            })
-            if (!bounds.isEmpty()) {
-              map.fitBounds(bounds, { padding: 80, maxZoom: 13 })
-            }
-          }
-        } catch (e) {
-          // ignore bounds error
+      if (!groups[clusterKey]) {
+        groups[clusterKey] = {
+          id: clusterKey,
+          name: loc.city,
+          region: loc.region,
+          country: loc.country,
+          coverUrl: thumbUrl,
+          photoCount: 1,
+          mediaIds: mediaId ? [mediaId] : [],
         }
-      })
-    },
-    mapboxOptions: {
-      zoom: 2,
-      center: [20, 20],
-    },
-  })
-
-  // Hook up full-screen URL present mode
-  urlPresentModeSetupHook({
-    dispatchMedia: dispatchMarkerMedia,
-    openPresentMode: event => {
-      dispatchMarkerMedia({
-        type: 'openPresentMode',
-        activeIndex: event.state.activeIndex,
-      })
-    },
-  })
-
-  // Handle place geocoding search (OpenStreetMap Nominatim)
-  const handleSearchSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!searchQuery.trim() || !mapboxMap) return
-
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-          searchQuery.trim()
-        )}`
-      )
-      const results = await res.json()
-      if (results && results.length > 0) {
-        const { lat, lon } = results[0]
-        mapboxMap.flyTo({
-          center: [parseFloat(lon), parseFloat(lat)],
-          zoom: 11,
-          essential: true,
-        })
+      } else {
+        groups[clusterKey].photoCount += 1
+        if (mediaId) {
+          groups[clusterKey].mediaIds.push(mediaId)
+        }
+        if (!groups[clusterKey].coverUrl && thumbUrl) {
+          groups[clusterKey].coverUrl = thumbUrl
+        }
       }
-    } catch (err) {
-      console.warn('Geocoding search failed:', err)
     }
-  }
 
+    return Object.values(groups).sort((a, b) => b.photoCount - a.photoCount)
+  }, [geoData?.myMediaGeoJson])
+
+  // Filtered by search input
+  const filteredCities = useMemo(() => {
+    if (!searchFilter.trim()) return cityClusters
+    const q = searchFilter.toLowerCase().trim()
+    return cityClusters.filter(
+      c =>
+        c.name.toLowerCase().includes(q) ||
+        c.region.toLowerCase().includes(q) ||
+        c.country.toLowerCase().includes(q)
+    )
+  }, [cityClusters, searchFilter])
+
+  // Total count
   const totalPhotosCount = useMemo(() => {
-    const geojson = mapboxData?.myMediaGeoJson as any
-    return geojson?.features ? geojson.features.length : 0
-  }, [mapboxData?.myMediaGeoJson])
+    return cityClusters.reduce((sum, c) => sum + c.photoCount, 0)
+  }, [cityClusters])
+
+  // When a city is selected, fetch its media items
+  const handleSelectCity = (city: CityCluster) => {
+    setSelectedCity(city)
+    setActiveMediaIndex(null)
+    loadMedia({
+      variables: { mediaIDs: city.mediaIds },
+    }).then(res => {
+      setDetailedMedia((res.data?.mediaList || []) as MediaGalleryFields[])
+    })
+  }
 
   return (
     <Layout title={t('places_page.title', 'Places')}>
@@ -382,105 +419,135 @@ const MapPage = () => {
         <title>Places | Photoview</title>
       </Helmet>
 
-      <MapWrapper>
-        {/* Floating Top Control Bar */}
-        <FloatingControlBar>
-          <LeftControls>
-            <form onSubmit={handleSearchSubmit}>
-              <SearchBoxContainer>
+      <PageContainer>
+        {!selectedCity ? (
+          <>
+            <HeaderSection>
+              <PageTitleGroup>
+                <MainHeading>
+                  <span>📍</span>
+                  <span>{t('places_page.heading', 'Places & Locations')}</span>
+                </MainHeading>
+                <Subtitle>
+                  {cityClusters.length} destinations • {totalPhotosCount} geotagged photos
+                </Subtitle>
+              </PageTitleGroup>
+
+              <SearchInputWrapper>
                 <SearchIcon>🔍</SearchIcon>
                 <SearchInput
                   type="text"
-                  placeholder="Search cities, landmarks, places..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Filter cities or regions..."
+                  value={searchFilter}
+                  onChange={e => setSearchFilter(e.target.value)}
                 />
-              </SearchBoxContainer>
-            </form>
+              </SearchInputWrapper>
+            </HeaderSection>
 
-            <LayerButtonGroup>
-              <LayerButton
-                active={currentLayer === 'dark'}
-                onClick={() => setCurrentLayer('dark')}
-                title="Dark Matter Map"
-              >
-                🌙 Dark
-              </LayerButton>
-              <LayerButton
-                active={currentLayer === 'light'}
-                onClick={() => setCurrentLayer('light')}
-                title="Voyager Light Map"
-              >
-                ☀️ Light
-              </LayerButton>
-              <LayerButton
-                active={currentLayer === 'osm'}
-                onClick={() => setCurrentLayer('osm')}
-                title="OpenStreetMap"
-              >
-                🗺️ Streets
-              </LayerButton>
-              <LayerButton
-                active={currentLayer === 'satellite'}
-                onClick={() => setCurrentLayer('satellite')}
-                title="Satellite Imagery"
-              >
-                🛰️ Satellite
-              </LayerButton>
-            </LayerButtonGroup>
-          </LeftControls>
+            {geoLoading && (
+              <div className="py-20 text-center text-gray-400 text-sm">
+                Discovering photo locations...
+              </div>
+            )}
 
-          <StatsPill>
-            <span>📍</span>
-            <span>{totalPhotosCount} Geotagged Photos</span>
-          </StatsPill>
-        </FloatingControlBar>
+            {!geoLoading && filteredCities.length === 0 && (
+              <div className="py-20 text-center text-gray-400 text-sm">
+                {searchFilter ? 'No matching destinations found' : 'No geotagged photos found in library'}
+              </div>
+            )}
 
-        {/* Mapbox Container */}
-        {mapContainer}
+            <CityGrid>
+              {filteredCities.map(city => (
+                <CityCard
+                  key={city.id}
+                  onClick={() => handleSelectCity(city)}
+                  title={`View photos from ${city.name}`}
+                >
+                  <CoverPhotoWrapper>
+                    {city.coverUrl ? (
+                      <CoverImage src={city.coverUrl} alt={city.name} loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-2xl text-gray-500">
+                        📍
+                      </div>
+                    )}
+                    <CountBadge>{city.photoCount} photos</CountBadge>
+                  </CoverPhotoWrapper>
+                  <CardInfo>
+                    <CityName>{city.name}</CityName>
+                    <RegionCountry>
+                      {city.region ? `${city.region}, ${city.country}` : city.country}
+                    </RegionCountry>
+                  </CardInfo>
+                </CityCard>
+              ))}
+            </CityGrid>
+          </>
+        ) : (
+          <>
+            {/* City Detail View */}
+            <DetailHeader>
+              <BackButton onClick={() => setSelectedCity(null)}>
+                ← All Places
+              </BackButton>
+              <div>
+                <MainHeading style={{ fontSize: '20px' }}>
+                  <span>📍</span>
+                  <span>{selectedCity.name}</span>
+                </MainHeading>
+                <Subtitle>
+                  {selectedCity.region ? `${selectedCity.region}, ` : ''}
+                  {selectedCity.country} • {selectedCity.photoCount} photos
+                </Subtitle>
+              </div>
+            </DetailHeader>
 
-        {/* Split Media Drawer for Selected Cluster */}
-        <PlacesMediaDrawer
-          open={drawerOpen}
-          mediaList={drawerMediaList}
-          loading={drawerLoading}
-          onClose={() => setDrawerOpen(false)}
-          onSelectMedia={(index) => {
-            dispatchMarkerMedia({
-              type: 'replaceMedia',
-              media: drawerMediaList,
-            })
-            dispatchMarkerMedia({
-              type: 'openPresentMode',
-              activeIndex: index,
-            })
-          }}
-          onPresentAll={() => {
-            if (drawerMediaList.length > 0) {
-              dispatchMarkerMedia({
-                type: 'replaceMedia',
-                media: drawerMediaList,
-              })
-              dispatchMarkerMedia({
-                type: 'openPresentMode',
-                activeIndex: 0,
-              })
-            }
-          }}
-        />
-      </MapWrapper>
+            {mediaLoading && (
+              <div className="py-20 text-center text-gray-400 text-sm">
+                Loading photos from {selectedCity.name}...
+              </div>
+            )}
+
+            <MediaGalleryGrid>
+              {detailedMedia.map((m, idx) => (
+                <MediaCard
+                  key={m.id}
+                  onClick={() => setActiveMediaIndex(idx)}
+                  title={m.title || 'Photo'}
+                >
+                  <Thumbnail src={m.thumbnail?.url || ''} alt={m.title || ''} loading="lazy" />
+                  {m.type === 'video' && (
+                    <div className="absolute top-2 right-2 bg-black/60 rounded px-1.5 py-0.5 text-xs text-white">
+                      🎬
+                    </div>
+                  )}
+                </MediaCard>
+              ))}
+            </MediaGalleryGrid>
+          </>
+        )}
+      </PageContainer>
 
       {/* Full-Screen Presentation Viewer */}
-      {markerMediaState.presenting && markerMediaState.media[markerMediaState.activeIndex] && (
+      {activeMediaIndex !== null && detailedMedia[activeMediaIndex] && (
         <PresentView
-          activeMedia={markerMediaState.media[markerMediaState.activeIndex]}
-          dispatchMedia={dispatchMarkerMedia}
-          mediaList={markerMediaState.media}
+          activeMedia={detailedMedia[activeMediaIndex]}
+          dispatchMedia={(action: any) => {
+            if (action.type === 'closePresentMode') {
+              setActiveMediaIndex(null)
+            } else if (action.type === 'nextImage') {
+              setActiveMediaIndex((prev) =>
+                prev !== null && prev < detailedMedia.length - 1 ? prev + 1 : prev
+              )
+            } else if (action.type === 'previousImage') {
+              setActiveMediaIndex((prev) =>
+                prev !== null && prev > 0 ? prev - 1 : prev
+              )
+            }
+          }}
+          mediaList={detailedMedia}
           onSelectMedia={(_media, index) => {
-            dispatchMarkerMedia({
-              type: 'openPresentMode',
-              activeIndex: index,
-            })
+            setActiveMediaIndex(index)
           }}
           disableSaveCloseInHistory={true}
         />
@@ -489,4 +556,4 @@ const MapPage = () => {
   )
 }
 
-export default MapPage
+export default PlacesPage

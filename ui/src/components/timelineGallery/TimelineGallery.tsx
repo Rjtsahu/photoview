@@ -18,7 +18,6 @@ import {
 } from './timelineGalleryReducer'
 import { urlPresentModeSetupHook } from '../photoGallery/mediaGalleryReducer'
 import TimelineFilters from './TimelineFilters'
-import TimelineMapOverlay from './TimelineMapOverlay'
 import client from '../../apolloClient'
 import {
   DateFilterState,
@@ -148,7 +147,6 @@ const TimelineGallery = ({
 
   const favoritesNeedsRefresh = useRef(false)
   const isInitialMountFilter = useRef(true)
-  const [showMap, setShowMap] = useState(false)
   const isInitialMountFav = useRef(true)
 
   const [mediaState, dispatchMedia] = useReducer(timelineGalleryReducer, {
@@ -314,21 +312,7 @@ const TimelineGallery = ({
         hideVideoCheckbox={hideVideoCheckbox}
         dateFilter={dateFilter}
         setDateFilter={setDateFilter}
-        showMap={showMap}
-        onToggleMap={() => setShowMap(!showMap)}
       />
-      {showMap && (
-        <TimelineMapOverlay
-          mediaItems={flatTimelineMedia}
-          onSelectMedia={(idx) => {
-            dispatchMedia({
-              type: 'selectImage',
-              index: idx,
-            })
-          }}
-          onClose={() => setShowMap(false)}
-        />
-      )}
       <div className="-mx-3 flex flex-wrap" ref={containerElem}>
         {timelineGroups}
       </div>
