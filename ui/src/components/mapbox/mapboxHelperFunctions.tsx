@@ -13,6 +13,7 @@ type registerMediaMarkersArgs = {
   map: mapboxgl.Map
   mapboxLibrary: typeof mapboxgl
   dispatchMarkerMedia: React.Dispatch<PlacesAction>
+  onSelectCluster?: (marker: MediaMarker) => void
 }
 
 /**
@@ -32,7 +33,7 @@ export const registerMediaMarkers = (args: registerMediaMarkersArgs) => {
  * Make a function that can be passed to Mapbox to tell it how to render and update the image markers
  */
 const makeUpdateMarkers =
-  ({ map, mapboxLibrary, dispatchMarkerMedia }: registerMediaMarkersArgs) =>
+  ({ map, mapboxLibrary, dispatchMarkerMedia, onSelectCluster }: registerMediaMarkersArgs) =>
   () => {
     const newMarkers: typeof markers = {}
     const features = map.querySourceFeatures('media')
@@ -44,7 +45,6 @@ const makeUpdateMarkers =
       const coords = point.coordinates as [number, number]
       const props = feature.properties as MediaMarker
       if (props == null) {
-        console.warn('WARN: geojson feature had no properties', feature)
         continue
       }
 
@@ -56,6 +56,7 @@ const makeUpdateMarkers =
       if (!marker) {
         const el = createClusterPopupElement(props, {
           dispatchMarkerMedia,
+          onSelectCluster,
         })
         marker = markers[id] = new mapboxLibrary.Marker({
           element: el,
@@ -76,16 +77,18 @@ function createClusterPopupElement(
   geojsonProps: MediaMarker,
   {
     dispatchMarkerMedia,
+    onSelectCluster,
   }: {
     dispatchMarkerMedia: React.Dispatch<PlacesAction>
+    onSelectCluster?: (marker: MediaMarker) => void
   }
 ) {
-  // setPresentMarker: React.Dispatch<React.SetStateAction<PresentMarker | null>>
   const el = document.createElement('div')
   ReactDOM.render(
     <MapClusterMarker
       marker={geojsonProps}
       dispatchMarkerMedia={dispatchMarkerMedia}
+      onSelectCluster={onSelectCluster}
     />,
     el
   )

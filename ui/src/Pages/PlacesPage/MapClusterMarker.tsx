@@ -1,74 +1,129 @@
 import React from 'react'
 import styled from 'styled-components'
-import imagePopupSrc from './image-popup.svg'
 import { MediaMarker } from './MapPresentMarker'
 import { PlacesAction } from './placesReducer'
 
-const Wrapper = styled.div`
-  width: 56px;
-  height: 68px;
+const MarkerWrapper = styled.div`
   position: relative;
-  margin-top: -54px;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  margin-left: -26px;
   cursor: pointer;
+  transform: translateZ(0);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    transform: scale(1.15) translateY(-3px);
+    z-index: 50;
+  }
+`
+
+const ThumbnailContainer = styled.div`
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2.5px solid #00d2ff;
+  box-shadow: 0 4px 16px rgba(0, 210, 255, 0.45), 0 2px 6px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+  background: #18181b;
+  position: relative;
 `
 
 const ThumbnailImage = styled.img`
-  position: absolute;
-  width: 48px;
-  height: 48px;
-  top: 4px;
-  left: 4px;
-  border-radius: 2px;
-  object-fit: cover;
-`
-
-const PopupImage = styled.img`
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  display: block;
 `
 
-const PointCountCircle = styled.div`
+const CountBadge = styled.div`
   position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 24px;
-  height: 24px;
-  background-color: #00b3dc;
-  border-radius: 50%;
-  color: white;
-  text-align: center;
-  padding-top: 2px;
+  top: -4px;
+  right: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border: 1.5px solid #ffffff;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+`
+
+const PinTail = styled.div`
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #00d2ff;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
 `
 
 type MapClusterMarkerProps = {
   dispatchMarkerMedia: React.Dispatch<PlacesAction>
   marker: MediaMarker
+  onSelectCluster?: (marker: MediaMarker) => void
 }
 
 const MapClusterMarker = ({
   marker,
   dispatchMarkerMedia,
+  onSelectCluster,
 }: MapClusterMarkerProps) => {
-  const thumbnail = JSON.parse(marker.thumbnail) as { url: string }
-
-  const presentMedia = () => {
-    dispatchMarkerMedia({
-      type: 'replacePresentMarker',
-      marker: {
-        cluster: !!marker.cluster,
-        id: marker.cluster ? marker.cluster_id : marker.media_id,
-      },
-    })
+  let thumbUrl = ''
+  try {
+    if (typeof marker.thumbnail === 'string') {
+      const parsed = JSON.parse(marker.thumbnail)
+      thumbUrl = parsed.url
+    } else if (marker.thumbnail && (marker.thumbnail as any).url) {
+      thumbUrl = (marker.thumbnail as any).url
+    }
+  } catch {
+    thumbUrl = ''
   }
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onSelectCluster) {
+      onSelectCluster(marker)
+    } else {
+      dispatchMarkerMedia({
+        type: 'replacePresentMarker',
+        marker: {
+          cluster: !!marker.cluster,
+          id: marker.cluster ? marker.cluster_id : marker.media_id,
+        },
+      })
+    }
+  }
+
+  const count = marker.point_count_abbreviated || (marker as any).point_count
+
   return (
-    <Wrapper onClick={presentMedia}>
-      <PopupImage src={imagePopupSrc} />
-      <ThumbnailImage src={thumbnail.url} />
-      {marker.cluster && (
-        <PointCountCircle>{marker.point_count_abbreviated}</PointCountCircle>
+    <MarkerWrapper onClick={handleClick} title={marker.cluster ? `Cluster of ${count} photos` : 'View photo'}>
+      <ThumbnailContainer>
+        {thumbUrl ? (
+          <ThumbnailImage src={thumbUrl} alt="" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-xs text-white">📷</div>
+        )}
+      </ThumbnailContainer>
+      {marker.cluster && count > 1 && (
+        <CountBadge>{count}</CountBadge>
       )}
-    </Wrapper>
+      <PinTail />
+    </MarkerWrapper>
   )
 }
 
