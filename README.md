@@ -15,7 +15,12 @@ You configure Photoview to look for photos and videos within a directory on your
 When your media has been scanned, they show up on the website, organised in the same way as on the filesystem.
 
 > [!TIP]
-> **🚀 Enhanced Edition**: This repository includes next-generation features: **Cinematic Netflix-Style Video Player** with smart 4K progressive buffering, **In-Browser Photo Editor Studio**, **Dedicated Videos Tab**, **Optimistic Favorites**, and a **22-test automated verification suite**.
+> **🚀 Enhanced Edition**: This repository includes next-generation features:
+> - **Places & Cities Directory**: Automated reverse geocoding from GPS coordinates into visual city & destination cards with drill-down galleries.
+> - **Cinematic Netflix-Style Video Player**: Smart 4K progressive buffering, hover scrubber preview, and video metadata HUD (4K/1080p, fps, codec).
+> - **In-Browser Photo Editor Studio**: Hardware-accelerated tonal adjustments, filter presets, interactive crop/transform, and high-res export.
+> - **Date Range Filtering Suite**: Quick presets (`On This Day / Memories`, `Past 30 Days`, `This Year`), custom date picker, and URL synchronization.
+> - **Dedicated Videos Tab & Optimistic Favorites**: Instant 0ms favorites toggling and specialized video navigation.
 > 
 > 📖 **[Explore the Complete Feature Guide (docs/FEATURES.md)](./docs/FEATURES.md)** | 🏛️ **[Technical Architecture & Algorithm Guide (docs/ARCHITECTURE.md)](./docs/ARCHITECTURE.md)**
 

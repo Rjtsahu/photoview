@@ -1,6 +1,6 @@
 # ✨ Photoview Enhanced Edition: Feature Guide
 
-Welcome to the **Photoview Enhanced Edition**! This fork transforms Photoview from a traditional static photo viewer into a modern, feature-rich media gallery studio with cinematic video playback, hardware-accelerated photo editing, and advanced navigation.
+Welcome to the **Photoview Enhanced Edition**! This fork transforms Photoview from a traditional static photo viewer into a modern, feature-rich media gallery studio with cinematic video playback, hardware-accelerated photo editing, smart date range filtering, and automated location discovery.
 
 ---
 
@@ -9,6 +9,7 @@ Welcome to the **Photoview Enhanced Edition**! This fork transforms Photoview fr
   - [Smart Progressive Pre-Buffering & 4K Smoothing](#smart-progressive-pre-buffering--4k-smoothing)
   - [Scrubber & Interactive Controls](#scrubber--interactive-controls)
   - [Speed & Volume Controls](#speed--volume-controls)
+  - [Filmstrip & Video Metadata HUD](#filmstrip--video-metadata-hud)
   - [Keyboard Shortcuts](#video-keyboard-shortcuts)
 - [2. In-Browser Photo Editor Studio](#2-in-browser-photo-editor-studio)
   - [Tonal & Color Adjustments](#tonal--color-adjustments)
@@ -16,14 +17,23 @@ Welcome to the **Photoview Enhanced Edition**! This fork transforms Photoview fr
   - [Crop, Aspect Ratios & Transform](#crop-aspect-ratios--transform)
   - [Hold-for-Original Comparison](#hold-for-original-comparison)
   - [High-Resolution Export & Save](#high-resolution-export--save)
-- [3. Dedicated Videos Hub & Timeline Filtering](#3-dedicated-videos-hub--timeline-filtering)
+- [3. Places & Cities Directory with Reverse Geocoding](#3-places--cities-directory-with-reverse-geocoding)
+  - [Automated Coordinate Reverse Geocoding](#automated-coordinate-reverse-geocoding)
+  - [Visual City & Destination Cards](#visual-city--destination-cards)
+  - [Instant Location Search & Filter](#instant-location-search--filter)
+  - [Dedicated City Photo Stream (Drill-Down Gallery)](#dedicated-city-photo-stream-drill-down-gallery)
+- [4. Comprehensive Date Range Filtering Suite](#4-comprehensive-date-range-filtering-suite)
+  - [Intuitive Filter Presets](#intuitive-filter-presets)
+  - [Custom Date Range Picker](#custom-date-range-picker)
+  - [Persistent URL Bookmarking](#persistent-url-bookmarking)
+- [5. Dedicated Videos Hub & Timeline Filtering](#5-dedicated-videos-hub--timeline-filtering)
   - [Dedicated `/videos` Tab](#dedicated-videos-tab)
   - [In-Place Timeline Media Filter](#in-place-timeline-media-filter)
-- [4. Hardware-Accelerated Presentation Viewer](#4-hardware-accelerated-presentation-viewer)
+- [6. Hardware-Accelerated Presentation Viewer](#6-hardware-accelerated-presentation-viewer)
   - [Smooth Pan, Pinch & Zoom (Up to 8x)](#smooth-pan-pinch--zoom-up-to-8x)
   - [Zero-Lag Optimistic Favorites](#zero-lag-optimistic-favorites)
-  - [EXIF Metadata HUD & Filmstrip](#exif-metadata-hud--filmstrip)
-- [5. Keyboard Shortcut Master Reference](#5-keyboard-shortcut-master-reference)
+  - [Unified Filmstrip for Photos and Videos](#unified-filmstrip-for-photos-and-videos)
+- [7. Keyboard Shortcut Master Reference](#7-keyboard-shortcut-master-reference)
 
 ---
 
@@ -49,30 +59,18 @@ When streaming heavy smartphone videos (such as **4K UHD 60fps** files exceeding
 - **Double-Click Ripple Seek**: Double-clicking the left 35% of the video skips backward 10s (`-10s` ripple); double-clicking the right 35% skips forward 10s (`+10s` ripple).
 - **Center Action Pulse**: Clean animated ripple indicator showing play/pause/speed states upon interaction.
 
-### Speed & Volume Controls
-- **One-Click Speed Cycling**: Click the speed badge to cycle directly between `1x` ➔ `1.25x` ➔ `1.5x` ➔ `2x` ➔ `0.5x` ➔ `0.75x`.
-- **Speed Popover Menu**: Click the dropdown caret (`▾`) to pick specific playback rates from an anchored menu.
-- **Expandable Volume Bar**: Hover-to-expand horizontal slider with dynamic mute/low/high speaker icon.
-
-### Video Keyboard Shortcuts
-| Key | Action |
-| :--- | :--- |
-| `Space` or `K` | Toggle Play / Pause |
-| `J` / `←` | Seek backward 10s / 5s |
-| `L` / `→` | Seek forward 10s / 5s |
-| `M` | Toggle Mute |
-| `↑` / `↓` | Volume Up / Down (+/- 5%) |
-| `F` | Toggle Fullscreen |
-| `0`–`9` | Seek to 0% – 90% of duration |
+### Filmstrip & Video Metadata HUD
+- **Bottom Filmstrip (`strip` button)**: Toggle the thumbnail carousel while viewing videos to quickly scrub or jump between adjacent photos and videos in your library.
+- **Video Metadata HUD (`I` button)**: Top-right glassmorphic info badge displaying video resolution (with automatic `4K` and `1080p` badges), framerate (`60 fps`), video codec (`H.264`, `HEVC`), duration (`⏱ 3:45`), and capture date.
 
 ---
 
 ## 2. In-Browser Photo Editor Studio
 
-An interactive, hardware-accelerated studio overlay accessible directly from full-screen presentation mode via the **Edit (Pencil)** toolbar button or the `E` key.
+Hardware-accelerated photo studio overlay directly accessible inside the presentation viewer via the pencil **Edit** icon or `E` key.
 
 ### Tonal & Color Adjustments
-Interactive sliders with real-time feedback rendered at 60fps:
+Interactive sliders with real-time 60fps canvas feedback:
 - **Brightness** (-100 to +100)
 - **Contrast** (-100 to +100)
 - **Saturation** (-100 to +100)
@@ -108,38 +106,83 @@ Visual preview cards providing instant one-click professional color grading:
 
 ---
 
-## 3. Dedicated Videos Hub & Timeline Filtering
+## 3. Places & Cities Directory with Reverse Geocoding
+
+Explore your photos organized by where they were taken without needing paid external map tokens.
+
+### Automated Coordinate Reverse Geocoding
+- Converts raw EXIF GPS coordinates `(latitude, longitude)` into human-readable **City, State / Region, and Country**.
+- **Zero-Latency Offline Reference**: High-accuracy local lookup covering major destinations (Bengaluru, Nagpur, Seoni / Pench National Park, Nainital, Raipur, Sagar, Indore, Shimla, Coorg, Ooty & Nilgiris, Bandipur, Delhi NCR, Mumbai, Pune, Kyoto, Paris, etc.).
+- **OpenStreetMap Nominatim Fallback**: Dynamically resolves and client-caches unmapped coordinates (~1km radius) in `localStorage` so lookups never repeat.
+- **Invalid Coordinate Filtering**: Automatically filters out dummy `(0.0, 0.0)` coordinates.
+
+### Visual City & Destination Cards
+- Discovered locations are presented as visual album cards:
+  - **Cover Photo**: High-resolution thumbnail from the most recent photo in that destination.
+  - **Destination Title**: Prominent city/park name (e.g. **Bengaluru**, **Nagpur**, **Pench National Park**, **Nainital**).
+  - **Region & Country**: Subtitle detailing state and country (*Karnataka, India*, *Madhya Pradesh, India*).
+  - **Photo Count Badge**: Real-time media counter badge (`68 photos`, `34 photos`, `15 photos`).
+
+### Instant Location Search & Filter
+- Search bar at the top lets you filter your destination list instantly by city, state, or country name.
+
+### Dedicated City Photo Stream (Drill-Down Gallery)
+- Clicking any city card opens that destination's photo stream with breadcrumbs (`← All Places / Bengaluru (68 photos)`).
+- Renders an interactive photo & video grid from that location with video indicator badges (🎬).
+- Clicking any photo opens the full-screen presentation viewer with zoom and video support.
+
+---
+
+## 4. Comprehensive Date Range Filtering Suite
+
+### Intuitive Filter Presets
+In the Timeline gallery header, the date selector dropdown offers quick presets:
+- **All Time**: Shows your complete photo collection.
+- **✨ On This Day (Memories)**: Shows all photos taken on today's month and day across every year (relive memories from 1 year ago, 5 years ago, etc.).
+- **Past 30 Days**, **Past 90 Days**, **Past 365 Days**: Rolling relative filters.
+- **This Year** & **Last Year**: Instant calendar year views.
+- **Specific Years (2026, 2025, 2024...)**: Dynamically populated from your library's earliest photo to present.
+
+### Custom Date Range Picker
+- Selecting `Custom range...` reveals clean `From` and `To` date pickers.
+- Clicking either input invokes the native browser calendar picker via `showPicker()`.
+- Active filter pill badge (`e.g. Nov 1, 2020 – Dec 31, 2020 ✕`) allows one-click clearing.
+
+### Persistent URL Bookmarking
+- Date selections automatically sync with URL query parameters (`?date=past_30`, `?fromDate=2024-01-01&toDate=2024-06-30`) so links can be shared or bookmarked directly.
+
+---
+
+## 5. Dedicated Videos Hub & Timeline Filtering
 
 ### Dedicated `/videos` Tab
 - Added a permanent **Videos** item in the main navigation bar.
 - Renders an exclusive stream of all video content across your albums, complete with thumbnail previews, duration indicators, and direct presentation viewer launch.
 
 ### In-Place Timeline Media Filter
-- Filter pills in the Timeline header let you switch between:
-  - **All Media**
-  - **Photos Only**
-  - **Videos Only**
-- Automatically synchronizes with the URL query parameter (`?videos=1`) for easy bookmarking and sharing.
+- Checkboxes in the Timeline header let you filter between:
+  - **Show only favorites**
+  - **Show only videos**
+- Seamlessly combine date ranges with video/favorite filters.
 
 ---
 
-## 4. Hardware-Accelerated Presentation Viewer
+## 6. Hardware-Accelerated Presentation Viewer
 
 ### Smooth Pan, Pinch & Zoom (Up to 8x)
 - Pan and zoom high-resolution photos smoothly with mouse wheel, pinch gestures, or toolbar buttons (`+`, `-`, `Fit to Screen`).
-- Smooth CSS transforms maintain 60fps rendering.
+- Hardware-accelerated CSS transforms maintain 60fps rendering.
 
 ### Zero-Lag Optimistic Favorites
 - Click the floating heart icon or press `S` to favorite/unfavorite media.
-- Optimistically updates Apollo Client cache with **0ms UI latency** without reloading the page or dropping out of presentation mode.
+- Optimistically updates Apollo Client cache with **0ms UI latency** without reloading or exiting presentation mode.
 
-### EXIF Metadata HUD & Filmstrip
-- **EXIF HUD (`I` key)**: Displays camera model, lens, aperture, shutter speed, ISO, focal length, date, and dimensions.
-- **Thumbnail Filmstrip (`F` key)**: Bottom carousel displaying adjacent photos/videos in the current album for rapid navigation.
+### Unified Filmstrip for Photos and Videos
+- Bottom carousel displaying adjacent photos and videos for rapid navigation across the stream.
 
 ---
 
-## 5. Keyboard Shortcut Master Reference
+## 7. Keyboard Shortcut Master Reference
 
 | Mode | Shortcut | Action |
 | :--- | :--- | :--- |
@@ -147,7 +190,7 @@ Visual preview cards providing instant one-click professional color grading:
 | **Presentation** | `Escape` | Close viewer mode |
 | **Presentation** | `E` | Open Photo Editor Studio |
 | **Presentation** | `S` | Toggle Favorite (Heart) |
-| **Presentation** | `I` | Toggle EXIF Metadata HUD |
+| **Presentation** | `I` | Toggle EXIF / Video Metadata HUD |
 | **Presentation** | `F` | Toggle Thumbnail Filmstrip |
 | **Presentation** | `R` | Rotate photo 90° |
 | **Presentation** | `+` / `-` | Zoom in / Zoom out |

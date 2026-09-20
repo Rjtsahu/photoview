@@ -149,3 +149,11 @@ Run tests anytime with:
 ```bash
 npm --prefix ui test -- --run src/components/photoGallery/presentView/
 ```
+
+
+### Places & Reverse Geocoding Engine (`reverseGeocode.ts`)
+- **Hybrid Resolution Pipeline**:
+  1. **Offline Spatial Matching**: Checks incoming `(latitude, longitude)` coordinates against an embedded KD-like reference table of prominent metropolitan centers and destinations using Haversine spherical distance calculations ($R = 6371\text{ km}$).
+  2. **OpenStreetMap Nominatim Fallback**: Unknown coordinates query the Nominatim reverse geocoding API and parse `city`, `state`, and `country`.
+  3. **Client-Side Spatial Caching**: Coordinate clusters rounded to $0.02^\circ$ (~1.1km) are cached in browser `localStorage` under `pv_geo_{lat}_{lon}` to guarantee zero redundant network requests.
+  4. **Invalid Coordinate Guard**: Filters out dummy `(0.0, 0.0)` coordinate pairs emitted by some camera firmware.
