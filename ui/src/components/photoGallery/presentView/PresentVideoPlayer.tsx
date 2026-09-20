@@ -1159,10 +1159,17 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
         }}
       >
         <MediaTitle>{media.title || 'Video'}</MediaTitle>
-        {showExif && onToggleExif && (
-          <PresentExifBadge media={media} onClose={onToggleExif} />
-        )}
       </TopScrim>
+
+      {/* EXIF / Video Details HUD */}
+      {showExif && onToggleExif && (
+        <PresentExifBadge
+          media={media}
+          visible={Boolean(showExif)}
+          hideControls={!controlsVisible}
+          onClose={onToggleExif}
+        />
+      )}
 
       {/* Bottom Scrim with Scrubber & Controls */}
       <BottomScrim
@@ -1375,6 +1382,7 @@ const PresentVideoPlayer: React.FC<PresentVideoPlayerProps> = ({
             mediaList={mediaList}
             activeMedia={media}
             visible={Boolean(showFilmstrip)}
+            hideControls={!controlsVisible}
             onSelectMedia={onSelectMedia}
           />
         </FilmstripWrapper>

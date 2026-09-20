@@ -10,6 +10,7 @@ import (
 	"github.com/photoview/photoview/api/log"
 	"github.com/photoview/photoview/api/scanner/externaltools/exif"
 	"github.com/photoview/photoview/api/scanner/scanner_task"
+	"github.com/photoview/photoview/api/utils"
 )
 
 type ExifTask struct {
@@ -56,6 +57,16 @@ func SaveEXIF(tx *gorm.DB, media *models.Media) error {
 
 	if exifData == nil {
 		return nil
+	}
+
+	// Reverse-geocode coordinates if present
+	if exifData.GPSLatitude != nil && exifData.GPSLongitude != nil {
+		city, state, country := utils.ResolveLocation(tx, *exifData.GPSLatitude, *exifData.GPSLongitude)
+		if city != "" {
+			exifData.LocationCity = &city
+			exifData.LocationState = &state
+			exifData.LocationCountry = &country
+		}
 	}
 
 	// Add EXIF to database and link to media

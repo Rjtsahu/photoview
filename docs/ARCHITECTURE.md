@@ -149,3 +149,15 @@ Run tests anytime with:
 ```bash
 npm --prefix ui test -- --run src/components/photoGallery/presentView/
 ```
+
+
+### Places & Reverse Geocoding Architecture (`api/utils/reverse_geocode.go`, PostgreSQL)
+- **Backend-Driven Scalable Pipeline**:
+  1. **Scan-Time Resolution & Database Persistence**: During EXIF scanning (`SaveEXIF`), coordinates are reverse-geocoded and permanently saved to `location_city`, `location_state`, and `location_country` in `media_exif` with indexed lookups.
+  2. **Sub-Millisecond SQL Aggregation**: Resolves places via PostgreSQL `GROUP BY location_city, location_state, location_country`, computing photo counts, cover media, and media IDs in `< 2ms` directly on database indexes.
+  3. **Two-Tier Persistent Caching (`geo_cache`)**:
+     - Fast lookup against in-memory `sync.Map` and built-in regional centroids.
+     - Lookups check PostgreSQL `geo_cache` table for rounded coordinate grids.
+     - Unmapped coordinates call OpenStreetMap Nominatim once and commit to `geo_cache`.
+  4. **Frontend Instant Rendering**: `PlacesPage.tsx` directly renders backend-aggregated place groups with zero client-side loop or calculation overhead.
+  5. **Mapbox Deprecation**: All legacy Mapbox GL JavaScript bundles (~950KB) and canvas marker renderers were completely removed.

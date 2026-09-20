@@ -22,6 +22,9 @@ type MediaEXIF struct {
 	ExposureProgram *int64
 	GPSLatitude     *float64
 	GPSLongitude    *float64
+	LocationCity    *string `gorm:"column:location_city"`
+	LocationState   *string `gorm:"column:location_state"`
+	LocationCountry *string `gorm:"column:location_country"`
 }
 
 func (MediaEXIF) TableName() string {

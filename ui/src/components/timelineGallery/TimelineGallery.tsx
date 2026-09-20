@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useReducer, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useReducer, useMemo, useCallback } from 'react'
 import { useQuery, gql } from '@apollo/client'
 import TimelineGroupDate from './TimelineGroupDate'
 import PresentView from '../photoGallery/presentView/PresentView'
@@ -19,6 +19,12 @@ import {
 import { urlPresentModeSetupHook } from '../photoGallery/mediaGalleryReducer'
 import TimelineFilters from './TimelineFilters'
 import client from '../../apolloClient'
+import {
+  DateFilterState,
+  parseDateFilterFromUrl,
+  getDateFilterBounds,
+  matchesDateFilter,
+} from './dateFilterHelper'
 
 export const MY_TIMELINE_QUERY = gql`
   query myTimeline(
@@ -29,8 +35,8 @@ export const MY_TIMELINE_QUERY = gql`
   ) {
     myTimeline(
       onlyFavorites: $onlyFavorites
-      fromDate: $fromDate
       paginate: { limit: $limit, offset: $offset }
+      fromDate: $fromDate
     ) {
       id
       title
@@ -59,18 +65,7 @@ export const MY_TIMELINE_QUERY = gql`
   }
 `
 
-export type TimelineGroup = {
-  date: string
-  albums: TimelineGroupAlbum[]
-}
-
-export type TimelineGroupAlbum = {
-  id: string
-  title: string
-  media: myTimeline_myTimeline[]
-}
-
-export type TimelineGalleryProps = {
+type TimelineGalleryProps = {
   defaultOnlyVideos?: boolean
   hideVideoCheckbox?: boolean
 }
@@ -81,7 +76,7 @@ const TimelineGallery = ({
 }: TimelineGalleryProps = {}) => {
   const { t } = useTranslation()
 
-  const { getParam, setParam } = useURLParameters()
+  const { getParam, setParam, setParams } = useURLParameters()
 
   const onlyFavorites = getParam('favorites') == '1' ? true : false
   const setOnlyFavorites = (favorites: boolean) =>
@@ -100,10 +95,59 @@ const TimelineGallery = ({
     }
   }
 
-  const filterDate = getParam('date')
-  const setFilterDate = (x: string) => setParam('date', x)
+  const dateFilter = useMemo<DateFilterState>(
+    () => parseDateFilterFromUrl(getParam),
+    [
+      getParam('date_preset'),
+      getParam('date_year'),
+      getParam('date_from'),
+      getParam('date_to'),
+      getParam('date'),
+    ]
+  )
+
+  const setDateFilter = useCallback(
+    (nextFilter: DateFilterState) => {
+      setParams([
+        {
+          key: 'date_preset',
+          value: nextFilter.preset === 'all' ? null : nextFilter.preset,
+        },
+        {
+          key: 'date_year',
+          value:
+            nextFilter.preset === 'year' && nextFilter.year
+              ? `${nextFilter.year}`
+              : null,
+        },
+        {
+          key: 'date_from',
+          value:
+            nextFilter.preset === 'custom' && nextFilter.startDate
+              ? nextFilter.startDate
+              : null,
+        },
+        {
+          key: 'date_to',
+          value:
+            nextFilter.preset === 'custom' && nextFilter.endDate
+              ? nextFilter.endDate
+              : null,
+        },
+        { key: 'date', value: null },
+      ])
+    },
+    [setParams]
+  )
+
+  const dateFilterBounds = useMemo(
+    () => getDateFilterBounds(dateFilter),
+    [dateFilter]
+  )
 
   const favoritesNeedsRefresh = useRef(false)
+  const isInitialMountFilter = useRef(true)
+  const isInitialMountFav = useRef(true)
 
   const [mediaState, dispatchMedia] = useReducer(timelineGalleryReducer, {
     presenting: false,
@@ -121,9 +165,7 @@ const TimelineGallery = ({
   >(MY_TIMELINE_QUERY, {
     variables: {
       onlyFavorites,
-      fromDate: filterDate
-        ? `${parseInt(filterDate) + 1}-01-01T00:00:00Z`
-        : undefined,
+      fromDate: dateFilterBounds.backendFromDate,
       offset: 0,
       limit: 200,
     },
@@ -138,10 +180,15 @@ const TimelineGallery = ({
     })
 
   const timelineData = useMemo(() => {
-    const raw = data?.myTimeline || []
-    if (!onlyVideos) return raw
-    return raw.filter(m => m.type?.toLowerCase() === 'video')
-  }, [data?.myTimeline, onlyVideos])
+    let raw = data?.myTimeline || []
+    if (onlyVideos) {
+      raw = raw.filter(m => m.type?.toLowerCase() === 'video')
+    }
+    if (dateFilter.preset !== 'all') {
+      raw = raw.filter(m => matchesDateFilter(m.date, dateFilterBounds))
+    }
+    return raw
+  }, [data?.myTimeline, onlyVideos, dateFilter.preset, dateFilterBounds])
 
   useEffect(() => {
     dispatchMedia({
@@ -150,13 +197,24 @@ const TimelineGallery = ({
     })
   }, [timelineData])
 
+  const hasPassedDateRange = useMemo(() => {
+    if (dateFilterBounds.isOnThisDay) return false
+    if (!dateFilterBounds.startDate) return false
+    const raw = data?.myTimeline
+    if (!raw || raw.length === 0) return false
+    const oldestLoaded = new Date(raw[raw.length - 1].date).getTime()
+    return oldestLoaded < dateFilterBounds.startDate.getTime()
+  }, [data?.myTimeline, dateFilterBounds])
+
   useEffect(() => {
+    const isFiltered = onlyVideos || dateFilter.preset !== 'all'
     if (
-      onlyVideos &&
+      isFiltered &&
       !finishedLoadingMore &&
       !loading &&
       (data?.myTimeline?.length || 0) > 0 &&
-      timelineData.length < 24
+      timelineData.length < 24 &&
+      !hasPassedDateRange
     ) {
       fetchMore({
         variables: {
@@ -166,26 +224,31 @@ const TimelineGallery = ({
     }
   }, [
     onlyVideos,
+    dateFilter.preset,
     timelineData.length,
     data?.myTimeline?.length,
     finishedLoadingMore,
     loading,
     fetchMore,
+    hasPassedDateRange,
   ])
 
+  const filterKey = `${dateFilter.preset}_${dateFilter.year || ''}_${dateFilterBounds.backendFromDate || ''}`
   useEffect(() => {
-    ; (async () => {
+    if (isInitialMountFilter.current) {
+      isInitialMountFilter.current = false
+      return
+    }
+    ;(async () => {
       await client.resetStore()
       await refetch({
         onlyFavorites,
-        fromDate: filterDate
-          ? `${parseInt(filterDate) + 1}-01-01T00:00:00Z`
-          : undefined,
+        fromDate: dateFilterBounds.backendFromDate,
         offset: 0,
         limit: 200,
       })
     })()
-  }, [filterDate])
+  }, [filterKey])
 
   urlPresentModeSetupHook({
     dispatchMedia,
@@ -198,24 +261,15 @@ const TimelineGallery = ({
   })
 
   useEffect(() => {
+    if (isInitialMountFav.current) {
+      isInitialMountFav.current = false
+      return
+    }
     favoritesNeedsRefresh.current = false
     refetch({
       onlyFavorites: onlyFavorites,
     })
   }, [onlyFavorites])
-
-  if (error) {
-    return <div>{error.message}</div>
-  }
-
-  const timelineGroups = mediaState.timelineGroups.map((_, i) => (
-    <TimelineGroupDate
-      key={i}
-      groupIndex={i}
-      mediaState={mediaState}
-      dispatchMedia={dispatchMedia}
-    />
-  ))
 
   const flatTimelineMedia = useMemo(() => {
     const list: {
@@ -235,6 +289,19 @@ const TimelineGallery = ({
     return list
   }, [mediaState.timelineGroups])
 
+  if (error) {
+    return <div>{error.message}</div>
+  }
+
+  const timelineGroups = mediaState.timelineGroups.map((_, i) => (
+    <TimelineGroupDate
+      key={i}
+      groupIndex={i}
+      mediaState={mediaState}
+      dispatchMedia={dispatchMedia}
+    />
+  ))
+
   return (
     <div className="overflow-x-hidden">
       <TimelineFilters
@@ -243,8 +310,8 @@ const TimelineGallery = ({
         onlyVideos={onlyVideos}
         setOnlyVideos={setOnlyVideos}
         hideVideoCheckbox={hideVideoCheckbox}
-        filterDate={filterDate}
-        setFilterDate={setFilterDate}
+        dateFilter={dateFilter}
+        setDateFilter={setDateFilter}
       />
       <div className="-mx-3 flex flex-wrap" ref={containerElem}>
         {timelineGroups}
@@ -258,12 +325,14 @@ const TimelineGallery = ({
           activeMedia={getActiveTimelineMedia({ mediaState })!}
           dispatchMedia={dispatchMedia}
           mediaList={flatTimelineMedia.map(x => x.media)}
-          onSelectMedia={(_media, index) =>
-            dispatchMedia({
-              type: 'selectImage',
-              index: flatTimelineMedia[index].index,
-            })
-          }
+          onSelectMedia={(_media, index) => {
+            if (flatTimelineMedia[index]) {
+              dispatchMedia({
+                type: 'selectImage',
+                index: flatTimelineMedia[index].index,
+              })
+            }
+          }}
         />
       )}
     </div>

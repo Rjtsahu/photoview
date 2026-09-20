@@ -9,65 +9,173 @@ import (
 	"context"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 
 	"github.com/photoview/photoview/api/graphql/auth"
 	"github.com/photoview/photoview/api/utils"
 )
 
+type aggregatedPlaceRow struct {
+	City                 string  `gorm:"column:city"`
+	State                string  `gorm:"column:state"`
+	Country              string  `gorm:"column:country"`
+	Count                int     `gorm:"column:count"`
+	CenterLat            float64 `gorm:"column:center_lat"`
+	CenterLon            float64 `gorm:"column:center_lon"`
+	CoverThumbnailName   *string `gorm:"column:cover_thumbnail_name"`
+	CoverThumbnailWidth  *int    `gorm:"column:cover_thumbnail_width"`
+	CoverThumbnailHeight *int    `gorm:"column:cover_thumbnail_height"`
+	CoverMediaID         *int    `gorm:"column:cover_media_id"`
+	CoverMediaTitle      *string `gorm:"column:cover_media_title"`
+	MediaIDsStr          *string `gorm:"column:media_ids_str"`
+}
+
+type placeItem struct {
+	City       string     `json:"city"`
+	State      string     `json:"state"`
+	Country    string     `json:"country"`
+	Count      int        `json:"count"`
+	Center     [2]float64 `json:"center"`
+	CoverMedia struct {
+		ID        int    `json:"id"`
+		Title     string `json:"title"`
+		Thumbnail struct {
+			URL    string `json:"url"`
+			Width  int    `json:"width"`
+			Height int    `json:"height"`
+		} `json:"thumbnail"`
+	} `json:"coverMedia"`
+	MediaIDs []int `json:"mediaIds"`
+}
+
 // MyMediaGeoJSON is the resolver for the myMediaGeoJson field.
+// Returns pre-aggregated city/place clusters computed directly in PostgreSQL.
 func (r *queryResolver) MyMediaGeoJSON(ctx context.Context) (any, error) {
 	user := auth.UserFromContext(ctx)
 	if user == nil {
 		return nil, auth.ErrUnauthorized
 	}
 
-	var media []*geoMedia
+	var rows []*aggregatedPlaceRow
 
-	err := r.DB(ctx).Table("media").
-		Select("media.id AS media_id, media.title AS media_title, "+
-			"media_urls.media_name AS thumbnail_name, media_urls.width AS thumbnail_width, "+
-			"media_urls.height AS thumbnail_height, media_exif.gps_latitude AS latitude, "+
-			"media_exif.gps_longitude AS longitude").
-		Joins("INNER JOIN media_exif ON media.exif_id = media_exif.id").
-		Joins("INNER JOIN media_urls ON media.id = media_urls.media_id").
-		Joins("INNER JOIN user_albums ON media.album_id = user_albums.album_id").
-		Where("media_exif.gps_latitude IS NOT NULL").
-		Where("media_exif.gps_longitude IS NOT NULL").
-		Where("media_urls.purpose = 'thumbnail'").
-		Where("user_albums.user_id = ?", user.ID).
-		Scan(&media).Error
+	query := `
+SELECT 
+    me.location_city AS city,
+    COALESCE(me.location_state, '') AS state,
+    COALESCE(me.location_country, '') AS country,
+    COUNT(m.id) AS count,
+    ROUND(AVG(me.gps_latitude)::numeric, 4) AS center_lat,
+    ROUND(AVG(me.gps_longitude)::numeric, 4) AS center_lon,
+    (
+        SELECT mu.media_name 
+        FROM media m_sub
+        INNER JOIN media_urls mu ON m_sub.id = mu.media_id
+        INNER JOIN media_exif me_sub ON m_sub.exif_id = me_sub.id
+        WHERE me_sub.location_city = me.location_city
+          AND mu.purpose = 'thumbnail'
+        ORDER BY m_sub.date_shot DESC NULLS LAST
+        LIMIT 1
+    ) AS cover_thumbnail_name,
+    (
+        SELECT mu.width 
+        FROM media m_sub
+        INNER JOIN media_urls mu ON m_sub.id = mu.media_id
+        INNER JOIN media_exif me_sub ON m_sub.exif_id = me_sub.id
+        WHERE me_sub.location_city = me.location_city
+          AND mu.purpose = 'thumbnail'
+        ORDER BY m_sub.date_shot DESC NULLS LAST
+        LIMIT 1
+    ) AS cover_thumbnail_width,
+    (
+        SELECT mu.height 
+        FROM media m_sub
+        INNER JOIN media_urls mu ON m_sub.id = mu.media_id
+        INNER JOIN media_exif me_sub ON m_sub.exif_id = me_sub.id
+        WHERE me_sub.location_city = me.location_city
+          AND mu.purpose = 'thumbnail'
+        ORDER BY m_sub.date_shot DESC NULLS LAST
+        LIMIT 1
+    ) AS cover_thumbnail_height,
+    (
+        SELECT m_sub.id
+        FROM media m_sub
+        INNER JOIN media_exif me_sub ON m_sub.exif_id = me_sub.id
+        WHERE me_sub.location_city = me.location_city
+        ORDER BY m_sub.date_shot DESC NULLS LAST
+        LIMIT 1
+    ) AS cover_media_id,
+    (
+        SELECT m_sub.title
+        FROM media m_sub
+        INNER JOIN media_exif me_sub ON m_sub.exif_id = me_sub.id
+        WHERE me_sub.location_city = me.location_city
+        ORDER BY m_sub.date_shot DESC NULLS LAST
+        LIMIT 1
+    ) AS cover_media_title,
+    STRING_AGG(m.id::text, ',' ORDER BY m.date_shot DESC NULLS LAST) AS media_ids_str
+FROM media m
+INNER JOIN media_exif me ON m.exif_id = me.id
+INNER JOIN user_albums ua ON m.album_id = ua.album_id
+WHERE ua.user_id = ?
+  AND me.location_city IS NOT NULL
+  AND me.location_city != ''
+GROUP BY me.location_city, me.location_state, me.location_country
+ORDER BY count DESC;
+`
 
+	err := r.DB(ctx).Raw(query, user.ID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
 
-	features := make([]geoJSONFeature, 0)
+	places := make([]placeItem, 0, len(rows))
 
-	for _, item := range media {
-		geoPoint := makeGeoJSONFeatureGeometryPoint(item.Latitude, item.Longitude)
-
-		thumbnailURL := utils.ApiEndpointUrl()
-		thumbnailURL.Path = path.Join(thumbnailURL.Path, "photo", item.ThumbnailName)
-
-		properties := geoJSONMediaProperties{
-			MediaID:    item.MediaID,
-			MediaTitle: item.MediaTitle,
-			Thumbnail: struct {
-				URL    string `json:"url"`
-				Width  int    `json:"width"`
-				Height int    `json:"height"`
-			}{
-				URL:    thumbnailURL.String(),
-				Width:  item.ThumbnailWidth,
-				Height: item.ThumbnailHeight,
-			},
+	for _, row := range rows {
+		item := placeItem{
+			City:    row.City,
+			State:   row.State,
+			Country: row.Country,
+			Count:   row.Count,
+			Center:  [2]float64{row.CenterLat, row.CenterLon},
 		}
 
-		features = append(features, makeGeoJSONFeature(properties, geoPoint))
+		if row.CoverMediaID != nil {
+			item.CoverMedia.ID = *row.CoverMediaID
+		}
+		if row.CoverMediaTitle != nil {
+			item.CoverMedia.Title = *row.CoverMediaTitle
+		}
+
+		if row.CoverThumbnailName != nil {
+			thumbURL := utils.ApiEndpointUrl()
+			thumbURL.Path = path.Join(thumbURL.Path, "photo", *row.CoverThumbnailName)
+			item.CoverMedia.Thumbnail.URL = thumbURL.String()
+		}
+		if row.CoverThumbnailWidth != nil {
+			item.CoverMedia.Thumbnail.Width = *row.CoverThumbnailWidth
+		}
+		if row.CoverThumbnailHeight != nil {
+			item.CoverMedia.Thumbnail.Height = *row.CoverThumbnailHeight
+		}
+
+		if row.MediaIDsStr != nil && *row.MediaIDsStr != "" {
+			idStrs := strings.Split(*row.MediaIDsStr, ",")
+			item.MediaIDs = make([]int, 0, len(idStrs))
+			for _, idStr := range idStrs {
+				if id, err := strconv.Atoi(strings.TrimSpace(idStr)); err == nil {
+					item.MediaIDs = append(item.MediaIDs, id)
+				}
+			}
+		}
+
+		places = append(places, item)
 	}
 
-	featureCollection := makeGeoJSONFeatureCollection(features)
-	return featureCollection, nil
+	return map[string]any{
+		"type":   "PlaceCollection",
+		"places": places,
+	}, nil
 }
 
 // MapboxToken is the resolver for the mapboxToken field.
