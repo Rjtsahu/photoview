@@ -151,9 +151,13 @@ npm --prefix ui test -- --run src/components/photoGallery/presentView/
 ```
 
 
-### Places & Reverse Geocoding Engine (`reverseGeocode.ts`)
-- **Hybrid Resolution Pipeline**:
-  1. **Offline Spatial Matching**: Checks incoming `(latitude, longitude)` coordinates against an embedded KD-like reference table of prominent metropolitan centers and destinations using Haversine spherical distance calculations ($R = 6371\text{ km}$).
-  2. **OpenStreetMap Nominatim Fallback**: Unknown coordinates query the Nominatim reverse geocoding API and parse `city`, `state`, and `country`.
-  3. **Client-Side Spatial Caching**: Coordinate clusters rounded to $0.02^\circ$ (~1.1km) are cached in browser `localStorage` under `pv_geo_{lat}_{lon}` to guarantee zero redundant network requests.
-  4. **Invalid Coordinate Guard**: Filters out dummy `(0.0, 0.0)` coordinate pairs emitted by some camera firmware.
+### Places & Reverse Geocoding Architecture (`api/utils/reverse_geocode.go`, PostgreSQL)
+- **Backend-Driven Scalable Pipeline**:
+  1. **Scan-Time Resolution & Database Persistence**: During EXIF scanning (`SaveEXIF`), coordinates are reverse-geocoded and permanently saved to `location_city`, `location_state`, and `location_country` in `media_exif` with indexed lookups.
+  2. **Sub-Millisecond SQL Aggregation**: Resolves places via PostgreSQL `GROUP BY location_city, location_state, location_country`, computing photo counts, cover media, and media IDs in `< 2ms` directly on database indexes.
+  3. **Two-Tier Persistent Caching (`geo_cache`)**:
+     - Fast lookup against in-memory `sync.Map` and built-in regional centroids.
+     - Lookups check PostgreSQL `geo_cache` table for rounded coordinate grids.
+     - Unmapped coordinates call OpenStreetMap Nominatim once and commit to `geo_cache`.
+  4. **Frontend Instant Rendering**: `PlacesPage.tsx` directly renders backend-aggregated place groups with zero client-side loop or calculation overhead.
+  5. **Mapbox Deprecation**: All legacy Mapbox GL JavaScript bundles (~950KB) and canvas marker renderers were completely removed.

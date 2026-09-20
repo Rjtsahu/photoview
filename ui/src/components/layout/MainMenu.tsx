@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom'
 import { useQuery, gql } from '@apollo/client'
 import { authToken } from '../../helpers/authentication'
 import { useTranslation } from 'react-i18next'
-import { mapboxEnabledQuery } from '../../__generated__/mapboxEnabledQuery'
 import { tailwindClassNames } from '../../helpers/utils'
 import { faceDetectionEnabled } from './__generated__/faceDetectionEnabled'
 

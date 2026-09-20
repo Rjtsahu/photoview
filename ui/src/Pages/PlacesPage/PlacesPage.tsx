@@ -273,7 +273,7 @@ const Thumbnail = styled.img`
   display: block;
 `
 
-const MAPBOX_DATA_QUERY = gql`
+const PLACES_DATA_QUERY = gql`
   query mediaGeoJson {
     myMediaGeoJson
   }
@@ -322,7 +322,7 @@ const PlacesPage = () => {
   const [activeMediaIndex, setActiveMediaIndex] = useState<number | null>(null)
   const [detailedMedia, setDetailedMedia] = useState<MediaGalleryFields[]>([])
 
-  const { data: geoData, loading: geoLoading } = useQuery<mediaGeoJson>(MAPBOX_DATA_QUERY, {
+  const { data: geoData, loading: geoLoading } = useQuery<mediaGeoJson>(PLACES_DATA_QUERY, {
     fetchPolicy: 'cache-first',
   })
 
@@ -333,7 +333,22 @@ const PlacesPage = () => {
 
   // Aggregate GeoJSON points into Cities using Reverse Geocoding
   const cityClusters = useMemo<CityCluster[]>(() => {
-    const rawFeatures = (geoData?.myMediaGeoJson as any)?.features || []
+    const geoPayload = geoData?.myMediaGeoJson as any
+    // Fast-path: Backend-aggregated places from PostgreSQL
+    if (geoPayload?.places && Array.isArray(geoPayload.places)) {
+      return geoPayload.places.map((p: any) => ({
+        id: `${p.city}__${p.state || p.region || ''}`,
+        name: p.city,
+        region: p.state || p.region || '',
+        country: p.country || '',
+        coverUrl: p.coverMedia?.thumbnail?.url || '',
+        photoCount: p.count || 0,
+        mediaIds: (p.mediaIds || []).map(String),
+      })).sort((a: CityCluster, b: CityCluster) => b.photoCount - a.photoCount)
+    }
+
+    // Fallback: Client-side clustering for legacy payloads
+    const rawFeatures = geoPayload?.features || []
     const groups: { [key: string]: CityCluster } = {}
 
     for (const feat of rawFeatures) {

@@ -1,66 +1,48 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import useMapboxMap from '../../mapbox/MapboxMap'
 import { SidebarSection, SidebarSectionTitle } from '../SidebarComponents'
 import { sidebarMediaQuery_media_exif_coordinates } from './__generated__/sidebarMediaQuery'
+import { getCachedReverseGeocode } from '../../../Pages/PlacesPage/reverseGeocode'
 
-type MediaSidebarMapProps = {
+type MediaSidebarLocationProps = {
   coordinates: sidebarMediaQuery_media_exif_coordinates
 }
 
-const MediaSidebarMap = ({ coordinates }: MediaSidebarMapProps) => {
+const MediaSidebarLocation = ({ coordinates }: MediaSidebarLocationProps) => {
   const { t } = useTranslation()
-
-  const { mapContainer } = useMapboxMap({
-    mapboxOptions: {
-      interactive: true,
-      zoom: 12,
-      center: {
-        lat: coordinates.latitude,
-        lng: coordinates.longitude,
-      },
-    },
-    configureMapbox: (map, mapboxLibrary) => {
-      map.addControl(
-        new mapboxLibrary.NavigationControl({ showCompass: false }),
-        'top-right'
-      )
-
-      const centerMarker = new mapboxLibrary.Marker({
-        color: '#00d2ff',
-        scale: 0.9,
-      })
-      centerMarker.setLngLat({
-        lat: coordinates.latitude,
-        lng: coordinates.longitude,
-      })
-      centerMarker.addTo(map)
-    },
-  })
+  const locInfo = getCachedReverseGeocode(coordinates.latitude, coordinates.longitude)
 
   return (
     <SidebarSection>
       <SidebarSectionTitle>
         {t('sidebar.location.title', 'Location')}
       </SidebarSectionTitle>
-      <div className="w-full h-56 rounded-xl overflow-hidden shadow-inner border border-white/10 relative">
-        {mapContainer}
-      </div>
-      <div className="mt-2 text-xs text-gray-400 font-mono flex items-center justify-between">
-        <span>
-          {coordinates.latitude.toFixed(4)}°, {coordinates.longitude.toFixed(4)}°
-        </span>
-        <a
-          href={`https://www.openstreetmap.org/?mlat=${coordinates.latitude}&mlon=${coordinates.longitude}#map=14/${coordinates.latitude}/${coordinates.longitude}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-cyan-400 hover:underline"
-        >
-          View on OSM ↗
-        </a>
+      <div className="bg-gray-50 dark:bg-dark-input-bg p-3.5 rounded-xl border border-gray-200 dark:border-gray-700/60 shadow-sm">
+        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <span>📍</span>
+          <span>{locInfo?.city || 'Geotagged Location'}</span>
+        </div>
+        {locInfo?.region && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-6">
+            {locInfo.region}, {locInfo.country}
+          </div>
+        )}
+        <div className="mt-3 pt-2.5 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-between text-xs text-gray-400 font-mono">
+          <span>
+            {coordinates.latitude.toFixed(4)}°, {coordinates.longitude.toFixed(4)}°
+          </span>
+          <a
+            href={`https://www.openstreetmap.org/?mlat=${coordinates.latitude}&mlon=${coordinates.longitude}#map=15/${coordinates.latitude}/${coordinates.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-500 hover:text-cyan-400 hover:underline"
+          >
+            View on Map ↗
+          </a>
+        </div>
       </div>
     </SidebarSection>
   )
 }
 
-export default MediaSidebarMap
+export default MediaSidebarLocation
